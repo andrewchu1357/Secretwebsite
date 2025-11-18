@@ -47,7 +47,7 @@
       const password = document.getElementById("password").value;
 
       signInWithEmailAndPassword(auth, email, password)
-        .then((userCredential) => {
+        .then(() => {
           // Redirect to dashboard (relative path)
           window.location.href = "dashboard.html";
         })
