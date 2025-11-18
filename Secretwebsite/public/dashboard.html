@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Dashboard — Messages</title>
+  <title>Dashboard — Threads & Posts</title>
   <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
@@ -19,18 +19,41 @@
       </div>
     </header>
 
-    <section id="compose" class="panel">
-      <h2>Write a message</h2>
-      <textarea id="msgText" rows="4" placeholder="Write a message..."></textarea>
+    <section id="createThread" class="panel">
+      <h2>Create thread</h2>
+      <input id="threadTitle" type="text" placeholder="Thread title" />
+      <textarea id="threadIntro" rows="2" placeholder="Optional intro"></textarea>
       <div class="row">
-        <label><input id="pinCheckbox" type="checkbox"> Pin</label>
-        <button id="postBtn">Post message</button>
+        <label><input id="threadPinned" type="checkbox"> Pin thread</label>
+        <button id="createThreadBtn">Create Thread</button>
       </div>
     </section>
 
-    <section id="list" class="panel">
-      <h2>Messages</h2>
-      <div id="messagesList" class="messages">Loading...</div>
+    <section id="threadsSection" class="panel">
+      <h2>Threads</h2>
+      <div id="threadsList" class="messages">Loading threads...</div>
+    </section>
+
+    <section id="threadView" class="panel hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2 id="threadTitleView">Thread</h2>
+        <div>
+          <button id="backToThreads">Back</button>
+          <button id="deleteThreadBtn" class="danger">Delete Thread</button>
+        </div>
+      </div>
+
+      <div id="threadIntroView" class="small muted"></div>
+
+      <div id="postsList" class="messages">Loading posts...</div>
+
+      <div class="replyForm">
+        <textarea id="postText" rows="3" placeholder="Write a post/comment..."></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+          <label><input id="postPinned" type="checkbox"> Pin post</label>
+          <button id="postBtn">Post</button>
+        </div>
+      </div>
     </section>
 
     <div id="loading">Checking authentication...</div>

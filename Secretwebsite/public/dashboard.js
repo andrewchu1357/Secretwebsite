@@ -1,10 +1,16 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import {
-  getAuth, onAuthStateChanged, signOut
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import {
-  getFirestore, collection, addDoc, query, orderBy, onSnapshot,
-  deleteDoc, doc, serverTimestamp, getDocs
+  getFirestore,
+  collection,
+  addDoc,
+  query,
+  orderBy,
+  onSnapshot,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  getDocs
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -22,234 +28,252 @@ const auth = getAuth(app);
 let db = null;
 try { db = getFirestore(app); } catch (e) { console.warn("Firestore unavailable", e); db = null; }
 
+// DOM
 const loadingEl = document.getElementById("loading");
 const greetingEl = document.getElementById("greeting");
 const userEmailEl = document.getElementById("userEmail");
 const editNameBtn = document.getElementById("editName");
 const signOutBtn = document.getElementById("signOut");
 
-const msgText = document.getElementById("msgText");
+const threadTitleInput = document.getElementById("threadTitle");
+const threadIntroInput = document.getElementById("threadIntro");
+const threadPinned = document.getElementById("threadPinned");
+const createThreadBtn = document.getElementById("createThreadBtn");
+const threadsList = document.getElementById("threadsList");
+
+const threadView = document.getElementById("threadView");
+const threadTitleView = document.getElementById("threadTitleView");
+const threadIntroView = document.getElementById("threadIntroView");
+const deleteThreadBtn = document.getElementById("deleteThreadBtn");
+const backToThreads = document.getElementById("backToThreads");
+const postsList = document.getElementById("postsList");
+const postText = document.getElementById("postText");
 const postBtn = document.getElementById("postBtn");
-const pinCheckbox = document.getElementById("pinCheckbox");
-const messagesList = document.getElementById("messagesList");
+const postPinned = document.getElementById("postPinned");
 
-function hideLoading(){ loadingEl && loadingEl.classList.add("hidden"); }
-function showLoading(msg="Checking authentication..."){ if(loadingEl){ loadingEl.textContent = msg; loadingEl.classList.remove("hidden"); } }
+// helpers
+function hideLoading(){ if (loadingEl) loadingEl.classList.add("hidden"); }
+function showLoading(msg="Checking authentication..."){ if (loadingEl){ loadingEl.textContent = msg; loadingEl.classList.remove("hidden"); } }
 function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" })[c]); }
-function formatDate(ts){ try { if(!ts) return ""; if (ts.toDate) return ts.toDate().toLocaleString(); return new Date(ts).toLocaleString(); } catch { return ""; } }
-function cryptoRandomId(){ return Math.random().toString(36).slice(2,10); }
+function fmtDate(ts){ try { if (!ts) return ""; if (ts.toDate) return ts.toDate().toLocaleString(); return new Date(ts).toLocaleString(); } catch { return ""; } }
 
-// map of reply listeners to unsubscribe functions
-const replyUnsubs = new Map();
+// state
+let threadsUnsub = null;
+let postsUnsub = null;
+let currentThreadId = null;
 
-// real-time messages listener
-let messagesUnsub = null;
-function initMessagesListener() {
-  if (!db) {
-    messagesList.innerHTML = "<div class='small'>Firestore is not available.</div>";
-    return;
-  }
-  if (messagesUnsub) messagesUnsub();
-  const q = query(collection(db, "messages"), orderBy("pinned", "desc"), orderBy("createdAt", "desc"));
-  messagesUnsub = onSnapshot(q, snap => {
-    messagesList.innerHTML = "";
-    if (snap.empty) { messagesList.innerHTML = "<div class='small'>No messages yet</div>"; return; }
-    snap.forEach(docSnap => {
-      const data = docSnap.data();
-      const el = renderMessageItem(docSnap.id, data);
-      messagesList.appendChild(el);
+// listen for threads in realtime
+function initThreadsListener() {
+  if (!db) { threadsList.innerHTML = "<div class='small'>Firestore not available</div>"; return; }
+  if (threadsUnsub) threadsUnsub();
+  const q = query(collection(db, "threads"), orderBy("pinned", "desc"), orderBy("createdAt", "desc"));
+  threadsUnsub = onSnapshot(q, snap => {
+    threadsList.innerHTML = "";
+    if (snap.empty) { threadsList.innerHTML = "<div class='small'>No threads yet</div>"; return; }
+    snap.forEach(d => {
+      const data = d.data();
+      const el = renderThreadItem(d.id, data);
+      threadsList.appendChild(el);
     });
   }, err => {
-    console.error("Messages snapshot failed:", err);
-    messagesList.innerHTML = "<div class='small'>Failed to load messages.</div>";
+    console.error("threads snapshot error", err);
+    threadsList.innerHTML = "<div class='small'>Failed to load threads</div>";
   });
 }
 
-// render a single message element (includes replies area & reply form)
-function renderMessageItem(id, data) {
+// render a thread row
+function renderThreadItem(id, data) {
   const el = document.createElement("div");
-  el.className = "message";
-  const header = document.createElement("div");
-  header.className = "messageHeader";
+  el.className = "thread";
+
   const left = document.createElement("div");
-  left.innerHTML = `<div class="messageText">${escapeHtml(data.text)}</div><div class="meta small">${formatDate(data.createdAt)} • ${escapeHtml(data.authorEmail || "")}${data.pinned ? " • Pinned" : ""}</div>`;
+  left.className = "left";
+  left.innerHTML = `<strong>${escapeHtml(data.title)}</strong>
+    <div class="meta small">${fmtDate(data.createdAt)} • ${escapeHtml(data.authorEmail||"")}${data.pinned ? " • Pinned":""}</div>
+    <div class="small">${escapeHtml(data.intro||"")}</div>`;
+
   const actions = document.createElement("div");
   actions.className = "actions";
-  const toggleBtn = document.createElement("button");
-  toggleBtn.textContent = "Open";
-  toggleBtn.className = "small";
-  const deleteBtn = document.createElement("button");
-  deleteBtn.textContent = "Delete";
-  deleteBtn.style.background = "#ef4444";
+  const openBtn = document.createElement("button"); openBtn.textContent = "Open";
+  const delBtn = document.createElement("button"); delBtn.textContent = "Delete"; delBtn.style.background = "#ef4444";
+  actions.appendChild(openBtn);
+  actions.appendChild(delBtn);
 
-  actions.appendChild(toggleBtn);
-  // delete only shown to message author when user is known (checked later)
-  actions.appendChild(deleteBtn);
-  header.appendChild(left);
-  header.appendChild(actions);
+  el.appendChild(left);
+  el.appendChild(actions);
 
-  const repliesDiv = document.createElement("div");
-  repliesDiv.className = "replies hidden";
-  const replyForm = document.createElement("div");
-  replyForm.className = "replyForm hidden";
-  const replyTextarea = document.createElement("textarea");
-  replyTextarea.rows = 2;
-  replyTextarea.placeholder = "Write a reply...";
-  const replyBtn = document.createElement("button");
-  replyBtn.className = "replyBtn";
-  replyBtn.textContent = "Reply";
-  replyForm.appendChild(replyTextarea);
-  replyForm.appendChild(replyBtn);
+  openBtn.addEventListener("click", () => openThread(id, data));
 
-  el.appendChild(header);
-  el.appendChild(repliesDiv);
-  el.appendChild(replyForm);
-
-  // toggle show/hide replies
-  let opened = false;
-  toggleBtn.addEventListener("click", async () => {
-    opened = !opened;
-    if (opened) {
-      repliesDiv.classList.remove("hidden");
-      replyForm.classList.remove("hidden");
-      toggleBtn.textContent = "Close";
-      // attach replies listener
-      attachRepliesListener(id, repliesDiv);
-    } else {
-      repliesDiv.classList.add("hidden");
-      replyForm.classList.add("hidden");
-      toggleBtn.textContent = "Open";
-      detachRepliesListener(id);
-      repliesDiv.innerHTML = "";
-    }
+  // show delete only for author
+  onAuthStateChanged(auth, user => {
+    if (!user) delBtn.style.display = "none";
+    else delBtn.style.display = (user.uid === data.authorUid) ? "" : "none";
   });
 
-  // delete message
-  deleteBtn.addEventListener("click", async () => {
+  delBtn.addEventListener("click", async () => {
     const user = auth.currentUser;
     if (!user) { alert("Not authenticated"); return; }
-    if (user.uid !== data.authorUid) { alert("Only the author can delete this message"); return; }
-    if (!db) { alert("Cannot delete: Firestore not available"); return; }
+    if (user.uid !== data.authorUid) { alert("Only the author can delete this thread"); return; }
+    if (!db) { alert("Firestore required"); return; }
     try {
-      // delete subcollection replies first (best-effort)
-      const repliesSnap = await getDocs(collection(db, "messages", id, "replies"));
-      for (const r of repliesSnap.docs) {
-        await deleteDoc(doc(db, "messages", id, "replies", r.id));
+      const postsSnap = await getDocs(collection(db, "threads", id, "posts"));
+      for (const r of postsSnap.docs) {
+        await deleteDoc(doc(db, "threads", id, "posts", r.id));
       }
-      await deleteDoc(doc(db, "messages", id));
+      await deleteDoc(doc(db, "threads", id));
     } catch (err) {
-      console.error("Delete failed:", err);
+      console.error("Delete thread failed", err);
       alert("Delete failed: " + err.message);
     }
-  });
-
-  // post a reply
-  replyBtn.addEventListener("click", async () => {
-    const text = (replyTextarea.value || "").trim();
-    if (!text) return;
-    const user = auth.currentUser;
-    if (!user) { alert("Not authenticated"); return; }
-    if (!db) { alert("Firestore required to save replies to cloud"); return; }
-    try {
-      await addDoc(collection(db, "messages", id, "replies"), {
-        text,
-        authorUid: user.uid,
-        authorEmail: user.email || "",
-        createdAt: serverTimestamp()
-      });
-      replyTextarea.value = "";
-    } catch (err) {
-      console.error("Reply failed:", err);
-      alert("Reply failed: " + err.message);
-    }
-  });
-
-  // show/hide delete based on current user
-  onAuthStateChanged(auth, (user) => {
-    if (user && user.uid === data.authorUid) deleteBtn.style.display = "";
-    else deleteBtn.style.display = "none";
   });
 
   return el;
 }
 
-// attach live listener for replies for a message id
-function attachRepliesListener(messageId, container) {
-  if (!db) {
-    container.innerHTML = "<div class='small'>Cloud replies unavailable</div>";
-    return;
-  }
-  if (replyUnsubs.has(messageId)) return; // already listening
-  const repliesCol = collection(db, "messages", messageId, "replies");
-  const q = query(repliesCol, orderBy("createdAt", "asc"));
-  const unsub = onSnapshot(q, snap => {
-    container.innerHTML = "";
-    if (snap.empty) { container.innerHTML = "<div class='small'>No replies</div>"; return; }
-    snap.forEach(docSnap => {
-      const d = docSnap.data();
-      const r = document.createElement("div");
-      r.className = "reply";
-      r.innerHTML = `<div>${escapeHtml(d.text)}</div><div class="meta small">${formatDate(d.createdAt)} • ${escapeHtml(d.authorEmail || "")}</div>`;
-      // delete reply only for author
-      const user = auth.currentUser;
-      if (user && d.authorUid === user.uid) {
-        const del = document.createElement("button");
-        del.textContent = "Delete";
-        del.style.marginTop = "6px";
-        del.style.background = "#ef4444";
-        del.onclick = async () => {
-          try { await deleteDoc(doc(db, "messages", messageId, "replies", docSnap.id)); } catch (err) { console.error("Delete reply failed", err); }
-        };
-        r.appendChild(del);
-      }
-      container.appendChild(r);
+// open thread and subscribe to its posts
+function openThread(threadId, threadData) {
+  currentThreadId = threadId;
+  threadTitleView.textContent = threadData.title || "Thread";
+  threadIntroView.textContent = threadData.intro || "";
+
+  threadView.classList.remove("hidden");
+  document.getElementById("threadsSection").classList.add("hidden");
+  document.getElementById("createThread").classList.add("hidden");
+
+  const user = auth.currentUser;
+  deleteThreadBtn.style.display = (user && user.uid === threadData.authorUid) ? "" : "none";
+
+  if (!db) { postsList.innerHTML = "<div class='small'>Cloud posts unavailable</div>"; return; }
+  if (postsUnsub) postsUnsub();
+  const q = query(collection(db, "threads", threadId, "posts"), orderBy("pinned", "desc"), orderBy("createdAt","asc"));
+  postsUnsub = onSnapshot(q, snap => {
+    postsList.innerHTML = "";
+    if (snap.empty) { postsList.innerHTML = "<div class='small'>No posts yet</div>"; return; }
+    snap.forEach(d => {
+      const p = d.data();
+      const el = renderPostItem(threadId, d.id, p);
+      postsList.appendChild(el);
     });
   }, err => {
-    console.error("Replies onSnapshot error:", err);
-    container.innerHTML = "<div class='small'>Failed to load replies</div>";
+    console.error("posts snapshot failed", err);
+    postsList.innerHTML = "<div class='small'>Failed to load posts</div>";
   });
-  replyUnsubs.set(messageId, unsub);
-}
-function detachRepliesListener(messageId) {
-  const unsub = replyUnsubs.get(messageId);
-  if (unsub) { unsub(); replyUnsubs.delete(messageId); }
 }
 
-// auth state + initialize messages listener
+// render a single post in a thread
+function renderPostItem(threadId, postId, data) {
+  const el = document.createElement("div");
+  el.className = "message";
+  const textDiv = document.createElement("div");
+  textDiv.className = "messageText";
+  textDiv.innerHTML = escapeHtml(data.text);
+  const metaDiv = document.createElement("div");
+  metaDiv.className = "meta small";
+  metaDiv.textContent = `${fmtDate(data.createdAt)} • ${data.authorEmail || ""}${data.pinned ? " • Pinned":""}`;
+  el.appendChild(textDiv);
+  el.appendChild(metaDiv);
+
+  const user = auth.currentUser;
+  // show delete for author
+  if (user && user.uid === data.authorUid) {
+    const del = document.createElement("button");
+    del.textContent = "Delete";
+    del.style.background = "#ef4444";
+    del.style.marginTop = "8px";
+    del.addEventListener("click", async () => {
+      try { await deleteDoc(doc(db, "threads", threadId, "posts", postId)); } catch (err) { console.error("Delete post failed", err); alert("Delete failed: "+err.message); }
+    });
+    el.appendChild(del);
+  } else {
+    // in case auth state changes later, toggle delete visibility
+    onAuthStateChanged(auth, u => {
+      // nothing here; delete button will be attached on initial render if allowed
+    });
+  }
+
+  return el;
+}
+
+// create new thread
+createThreadBtn.addEventListener("click", async () => {
+  const title = (threadTitleInput.value||"").trim();
+  if (!title) { alert("Thread title required"); return; }
+  const intro = (threadIntroInput.value||"").trim();
+  const pinned = !!threadPinned.checked;
+  const user = auth.currentUser;
+  if (!user) { alert("Sign in required"); return; }
+  if (!db) { alert("Firestore required"); return; }
+  try {
+    await addDoc(collection(db, "threads"), {
+      title, intro, pinned,
+      authorUid: user.uid, authorEmail: user.email||"",
+      createdAt: serverTimestamp()
+    });
+    threadTitleInput.value=""; threadIntroInput.value=""; threadPinned.checked=false;
+  } catch (err) {
+    console.error("Create thread failed", err);
+    alert("Create thread failed: " + err.message);
+  }
+});
+
+// post in open thread
+postBtn.addEventListener("click", async () => {
+  const text = (postText.value||"").trim();
+  if (!text) return;
+  const pinned = !!postPinned.checked;
+  const user = auth.currentUser;
+  if (!user) { alert("Sign in required"); return; }
+  if (!db) { alert("Firestore required"); return; }
+  if (!currentThreadId) { alert("Open a thread first"); return; }
+  try {
+    await addDoc(collection(db, "threads", currentThreadId, "posts"), {
+      text, pinned,
+      authorUid: user.uid, authorEmail: user.email||"",
+      createdAt: serverTimestamp()
+    });
+    postText.value=""; postPinned.checked=false;
+  } catch (err) {
+    console.error("Post failed", err);
+    alert("Post failed: " + err.message);
+  }
+});
+
+backToThreads.addEventListener("click", () => {
+  threadView.classList.add("hidden");
+  document.getElementById("threadsSection").classList.remove("hidden");
+  document.getElementById("createThread").classList.remove("hidden");
+  if (postsUnsub) { postsUnsub(); postsUnsub = null; }
+  currentThreadId = null;
+});
+
+deleteThreadBtn.addEventListener("click", async () => {
+  if (!currentThreadId) return;
+  const user = auth.currentUser;
+  if (!user) { alert("Sign in required"); return; }
+  if (!db) { alert("Firestore required"); return; }
+  try {
+    const postsSnap = await getDocs(collection(db, "threads", currentThreadId, "posts"));
+    for (const r of postsSnap.docs) await deleteDoc(doc(db, "threads", currentThreadId, "posts", r.id));
+    await deleteDoc(doc(db, "threads", currentThreadId));
+    backToThreads.click();
+  } catch (err) {
+    console.error("Delete thread failed", err);
+    alert("Delete failed: " + err.message);
+  }
+});
+
+// auth + init
 onAuthStateChanged(auth, (user) => {
   if (!user) {
+    // file lives under Secretwebsite/public -> index is two levels up
     window.location.href = "../../index.html";
     return;
   }
   hideLoading();
   greetingEl.textContent = `Hello, ${localStorage.getItem("firstName") || "friend"}!`;
   userEmailEl.textContent = user.email || "";
-  if (db) initMessagesListener();
-  else messagesList.innerHTML = "<div class='small'>Firestore is not available. Messages require Firestore.</div>";
-});
-
-// post a new message
-postBtn.addEventListener("click", async () => {
-  const text = (msgText.value || "").trim();
-  if (!text) return;
-  const pinned = !!pinCheckbox.checked;
-  const user = auth.currentUser;
-  if (!user) { alert("Not authenticated"); return; }
-  if (!db) { alert("Firestore is required to save messages to the cloud"); return; }
-  try {
-    await addDoc(collection(db, "messages"), {
-      text,
-      pinned,
-      authorUid: user.uid,
-      authorEmail: user.email || "",
-      createdAt: serverTimestamp()
-    });
-    msgText.value = "";
-    pinCheckbox.checked = false;
-  } catch (err) {
-    console.error("Post failed:", err);
-    alert("Post failed: " + err.message);
-  }
+  if (db) initThreadsListener();
+  else threadsList.innerHTML = "<div class='small'>Firestore required for threads/posts.</div>";
 });
 
 // edit name & sign out
@@ -260,8 +284,5 @@ editNameBtn.addEventListener("click", ()=> {
   greetingEl.textContent = `Hello, ${localStorage.getItem("firstName") || "friend"}!`;
 });
 signOutBtn.addEventListener("click", async () => {
-  try {
-    await signOut(auth);
-    window.location.href = "../../index.html";
-  } catch (err) { alert("Sign out failed: " + err.message); }
+  try { await signOut(auth); window.location.href = "../../index.html"; } catch (err) { alert("Sign out failed: " + err.message); }
 });
