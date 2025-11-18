@@ -4,28 +4,32 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Admin Console</title>
-  <link rel="stylesheet" href="admin.css">
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;padding:28px;background:#f4f6f8}
+    .card{background:#fff;padding:20px;border-radius:8px;max-width:520px}
+    input,button{padding:10px;border-radius:6px;border:1px solid #ddd;font-size:14px}
+    button{background:#0b5fff;color:#fff;border:0}
+    .danger{background:#ef4444}
+    .muted{color:#666;font-size:13px}
+  </style>
 </head>
 <body>
-  <h1>Admin Console</h1>
-  <h2>Manage User Accounts</h2>
-  <form id="createUserForm">
-    <input type="email" id="newEmail" placeholder="New User Email" required />
-    <input type="password" id="newPassword" placeholder="New User Password" required />
-    <button type="submit">Create User</button>
-  </form>
+  <div class="card">
+    <h2>Admin Console</h2>
+    <p class="muted">You must be signed in as an admin to use this.</p>
 
-  <h2>Delete User Account</h2>
-  <form id="deleteUserForm">
-    <input type="email" id="deleteEmail" placeholder="User Email to Delete" required />
-    <button type="submit">Delete User</button>
-  </form>
+    <div id="status">Checking auth...</div>
 
-  <div id="userList">
-    <h3>Existing Users</h3>
-    <ul id="users"></ul>
+    <form id="promoteForm" style="margin-top:12px;display:none">
+      <label>Enter user email to promote to admin</label><br/>
+      <input id="targetEmail" type="email" placeholder="user@example.com" required />
+      <div style="margin-top:8px">
+        <button type="submit">Promote to Admin</button>
+        <button id="signOut" type="button" class="danger">Sign out</button>
+      </div>
+    </form>
   </div>
 
-  <script type="module" src="scripts/admin.js"></script>
+  <script type="module" src="admin.js"></script>
 </body>
 </html>

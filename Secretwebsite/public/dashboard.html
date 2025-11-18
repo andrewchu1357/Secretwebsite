@@ -3,29 +3,29 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Admin Console</title>
-  <link rel="stylesheet" href="admin.css">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
-  <h1>Admin Console</h1>
-  <h2>Manage User Accounts</h2>
-  <form id="createUserForm">
-    <input type="email" id="newEmail" placeholder="New User Email" required />
-    <input type="password" id="newPassword" placeholder="New User Password" required />
-    <button type="submit">Create User</button>
-  </form>
+  <main class="card">
+    <div id="welcomeArea" class="hidden">
+      <h1 id="greeting">Hello</h1>
+      <p id="userEmail"></p>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button id="editName">Edit name</button>
+        <button id="signOut">Sign out</button>
+      </div>
+    </div>
 
-  <h2>Delete User Account</h2>
-  <form id="deleteUserForm">
-    <input type="email" id="deleteEmail" placeholder="User Email to Delete" required />
-    <button type="submit">Delete User</button>
-  </form>
+    <form id="nameForm" class="hidden">
+      <h2>Welcome — what should we call you?</h2>
+      <input id="firstName" type="text" placeholder="First name" required />
+      <button type="submit">Save</button>
+    </form>
 
-  <div id="userList">
-    <h2>Current Users</h2>
-    <ul id="users"></ul>
-  </div>
+    <div id="loading">Checking authentication...</div>
+  </main>
 
-  <script type="module" src="scripts/admin.js"></script>
+  <script type="module" src="dashboard.js"></script>
 </body>
 </html>
