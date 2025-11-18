@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Dashboard — Notifications</title>
+  <title>Dashboard — Messages</title>
   <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
@@ -20,17 +20,17 @@
     </header>
 
     <section id="compose" class="panel">
-      <h2>Write a notification</h2>
-      <textarea id="noteText" rows="4" placeholder="Write a message..."></textarea>
+      <h2>Write a message</h2>
+      <textarea id="msgText" rows="4" placeholder="Write a message..."></textarea>
       <div class="row">
-        <input id="pinCheckbox" type="checkbox"><label for="pinCheckbox">Pin</label>
-        <button id="postBtn">Post notification</button>
+        <label><input id="pinCheckbox" type="checkbox"> Pin</label>
+        <button id="postBtn">Post message</button>
       </div>
     </section>
 
     <section id="list" class="panel">
-      <h2>Notifications</h2>
-      <div id="notesList" class="notes">Loading...</div>
+      <h2>Messages</h2>
+      <div id="messagesList" class="messages">Loading...</div>
     </section>
 
     <div id="loading">Checking authentication...</div>
