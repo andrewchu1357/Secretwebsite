@@ -235,7 +235,7 @@ if (createThreadBtn) {
       if (threadIntroInput) threadIntroInput.value = "";
       if (threadPinned) threadPinned.checked = false;
     } catch (err) {
-      console.error("Create thread failed:", err);
+      console.error("Create thread failed", err);
       alert("Create thread failed: " + (err.message || err));
     }
   });
