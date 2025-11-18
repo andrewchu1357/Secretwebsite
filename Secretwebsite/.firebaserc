@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "secretweb-71fcc"
+  },
+  "targets": {
+    "default": {
+      "hosting": {
+        "site": "secretweb-71fcc"
+      }
+    }
+  }
+}

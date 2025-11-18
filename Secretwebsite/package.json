@@ -1,0 +1,24 @@
+{
+  "name": "Secretwebsite",
+  "version": "1.0.0",
+  "description": "A web application for user authentication and admin management.",
+  "main": "public/index.html",
+  "scripts": {
+    "start": "firebase serve",
+    "deploy": "firebase deploy"
+  },
+  "dependencies": {
+    "firebase": "^12.6.0"
+  },
+  "devDependencies": {
+    "firebase-tools": "^11.0.0"
+  },
+  "keywords": [
+    "firebase",
+    "authentication",
+    "admin",
+    "user management"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

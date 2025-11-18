@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin Console</title>
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <h1>Admin Console</h1>
+  <h2>Manage User Accounts</h2>
+  <form id="createUserForm">
+    <input type="email" id="newEmail" placeholder="New User Email" required />
+    <input type="password" id="newPassword" placeholder="New User Password" required />
+    <button type="submit">Create User</button>
+  </form>
+
+  <h2>Delete User Account</h2>
+  <form id="deleteUserForm">
+    <input type="email" id="deleteEmail" placeholder="User Email to Delete" required />
+    <button type="submit">Delete User</button>
+  </form>
+
+  <div id="userList">
+    <h2>Current Users</h2>
+    <ul id="users"></ul>
+  </div>
+
+  <script type="module" src="scripts/admin.js"></script>
+</body>
+</html>
