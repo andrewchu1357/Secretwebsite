@@ -1,7 +1,17 @@
+// ...existing code...
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signOut, getIdTokenResult } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import {
-  getFirestore, collection, addDoc, query, orderBy, onSnapshot, deleteDoc, doc, serverTimestamp
+  getFirestore,
+  collection,
+  addDoc,
+  query,
+  orderBy,
+  onSnapshot,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  Timestamp
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -17,9 +27,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-let db;
-try { db = getFirestore(app); } catch (e) { db = null; }
+let db = null;
+try { db = getFirestore(app); } catch (e) { db = null; console.warn("Firestore not available, will use localStorage fallback.", e); }
 
+// DOM elems
 const loadingEl = document.getElementById("loading");
 const greetingEl = document.getElementById("greeting");
 const userEmailEl = document.getElementById("userEmail");
@@ -31,14 +42,19 @@ const postBtn = document.getElementById("postBtn");
 const pinCheckbox = document.getElementById("pinCheckbox");
 const notesList = document.getElementById("notesList");
 
-// Helpers
 function showLoading(msg = "Checking authentication...") {
-  loadingEl.textContent = msg; loadingEl.classList.remove("hidden");
+  if (loadingEl) { loadingEl.textContent = msg; loadingEl.classList.remove("hidden"); }
 }
-function hideLoading() { loadingEl.classList.add("hidden"); }
+function hideLoading() { if (loadingEl) loadingEl.classList.add("hidden"); }
 function formatDate(ts) {
-  try { return (ts.toDate) ? ts.toDate().toLocaleString() : new Date(ts).toLocaleString(); } catch { return ""; }
+  if (!ts) return "";
+  // Firestore Timestamp vs number
+  if (ts instanceof Timestamp) return ts.toDate().toLocaleString();
+  if (ts.toDate) return ts.toDate().toLocaleString();
+  return new Date(ts).toLocaleString();
 }
+function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" })[c]); }
+
 function renderNoteItem(nid, data, uid) {
   const el = document.createElement("div");
   el.className = "note";
@@ -51,9 +67,14 @@ function renderNoteItem(nid, data, uid) {
   del.textContent = "Delete";
   del.style.background = "#ef4444";
   del.onclick = async () => {
-    // Try Firestore first
+    // Try Firestore deletion first
     if (db && uid) {
-      try { await deleteDoc(doc(db, "users", uid, "notifications", nid)); return; } catch (e) { /* fallthrough */ }
+      try {
+        await deleteDoc(doc(db, "users", uid, "notifications", nid));
+        return;
+      } catch (e) {
+        console.warn("Firestore delete failed, falling back to localStorage", e);
+      }
     }
     // localStorage fallback
     const key = "notifications_" + uid;
@@ -66,33 +87,50 @@ function renderNoteItem(nid, data, uid) {
   el.appendChild(actions);
   return el;
 }
-function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" })[c]); }
 
-// Auth & initial load
-onAuthStateChanged(auth, (user) => {
+let canPost = false;
+
+onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    // path: /Secretwebsite/public/dashboard.html -> root index is two levels up
-    window.location.href = "../../index.html";
+    // dashboard.html is in project root; go to root index
+    window.location.href = "index.html";
     return;
   }
+
   hideLoading();
   const email = user.email || "";
   greetingEl.textContent = `Hello, ${localStorage.getItem("firstName") || "friend"}!`;
   userEmailEl.textContent = email;
-  // Load notes from Firestore if available, otherwise localStorage
+
+  // Secure: check custom claim 'notifier'
+  try {
+    const idTokenRes = await getIdTokenResult(user, /*forceRefresh=*/ false);
+    canPost = !!(idTokenRes?.claims?.notifier);
+  } catch (err) {
+    console.warn("Failed to read ID token claims:", err);
+    canPost = false;
+  }
+
+  // UI: enable/disable post button and show a message
+  postBtn.disabled = !canPost;
+  postBtn.title = canPost ? "" : "You are not allowed to post notifications";
+
+  // If using roles collection instead of custom claims, you can read roles doc:
+  // const roleDoc = await getDoc(doc(db, "roles", user.uid)); canPost = roleDoc.exists() && roleDoc.data().notifier === true;
+
   if (db) initFirestoreListener(user.uid);
   else loadLocalNotes(user.uid);
 });
 
-// Post notification
+// Prevent client from posting if not allowed (extra guard)
 postBtn.addEventListener("click", async () => {
-  const text = noteText.value.trim();
+  if (!canPost) { alert("You are not allowed to post notifications."); return; }
+  const text = (noteText.value || "").trim();
   if (!text) return;
   const pinned = !!pinCheckbox.checked;
   const user = auth.currentUser;
   if (!user) { alert("Not authenticated"); return; }
 
-  // Try Firestore write
   if (db) {
     try {
       await addDoc(collection(db, "users", user.uid, "notifications"), {
@@ -114,7 +152,6 @@ postBtn.addEventListener("click", async () => {
   loadLocalNotes(user.uid);
 });
 
-// Firestore listener
 let unsubscribe = null;
 function initFirestoreListener(uid) {
   if (unsubscribe) unsubscribe();
@@ -124,24 +161,21 @@ function initFirestoreListener(uid) {
     if (snap.empty) { notesList.innerHTML = "<div class='small'>No notifications yet</div>"; return; }
     snap.forEach(docSnap => {
       const data = docSnap.data();
-      // Ensure createdAt is readable
-      const createdAt = data.createdAt || Date.now();
+      const createdAt = data.createdAt || null;
       const item = renderNoteItem(docSnap.id, { text: data.text, pinned: data.pinned, createdAt }, uid);
       notesList.appendChild(item);
     });
   }, (err) => {
-    console.error("Realtime failed:", err);
+    console.error("Realtime snapshot error:", err);
     notesList.innerHTML = "<div class='small'>Failed to load realtime notifications.</div>";
   });
 }
 
-// localStorage loader
 function loadLocalNotes(uid) {
   notesList.innerHTML = "";
   const arr = JSON.parse(localStorage.getItem("notifications_" + uid) || "[]");
   if (!arr.length) { notesList.innerHTML = "<div class='small'>No notifications yet</div>"; return; }
-  // sort pinned + by date
-  arr.sort((a,b)=> (b.pinned - a.pinned) || ( (b.createdAt||0) - (a.createdAt||0) ));
+  arr.sort((a,b)=> (Number(b.pinned) - Number(a.pinned)) || ((b.createdAt||0) - (a.createdAt||0)));
   arr.forEach(i => {
     const id = i.id || cryptoRandomId();
     const data = { text: i.text, pinned: i.pinned, createdAt: i.createdAt };
@@ -149,19 +183,18 @@ function loadLocalNotes(uid) {
   });
 }
 
-// simple id
 function cryptoRandomId(){ return Math.random().toString(36).slice(2,10); }
 
-// Edit name / sign out
 editNameBtn.addEventListener("click", ()=> {
   const current = localStorage.getItem("firstName") || "";
   const name = prompt("What should we call you?", current) || "";
   if (name) localStorage.setItem("firstName", name);
   greetingEl.textContent = `Hello, ${localStorage.getItem("firstName") || "friend"}!`;
 });
+
 signOutBtn.addEventListener("click", async () => {
   try {
     await signOut(auth);
-    window.location.href = "../../index.html";
+    window.location.href = "index.html";
   } catch (err) { alert("Sign out failed: " + err.message); }
 });
