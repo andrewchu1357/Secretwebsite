@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /threads/{threadId} {
+      allow read: if true;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.authorUid;
+      allow delete: if request.auth != null && request.auth.uid == resource.data.authorUid;
+      allow update: if false;
+
+      match /posts/{postId} {
+        allow read: if true;
+        allow create: if request.auth != null && request.auth.uid == request.resource.data.authorUid;
+        allow delete: if request.auth != null && request.auth.uid == resource.data.authorUid;
+        allow update: if false;
+      }
+    }
+  }
+}

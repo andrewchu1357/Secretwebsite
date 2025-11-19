@@ -1,16 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import {
-  getFirestore,
-  collection,
-  addDoc,
-  query,
-  orderBy,
-  onSnapshot,
-  deleteDoc,
-  doc,
-  serverTimestamp,
-  getDocs
+  getFirestore, collection, addDoc, query, orderBy, onSnapshot,
+  deleteDoc, doc, serverTimestamp, getDocs
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -324,36 +316,4 @@ if (signOutBtn) {
   signOutBtn.addEventListener("click", async () => {
     try { await signOut(auth); window.location.href = "../../index.html"; } catch (err) { alert("Sign out failed: " + (err.message || err)); }
   });
-}
-
-// Firestore security rules
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-
-    // threads collection
-    match /threads/{threadId} {
-      allow read: if true;
-
-      // Authenticated users can create threads, but require authorUid to match the caller
-      allow create: if request.auth != null
-                    && request.auth.uid == request.resource.data.authorUid;
-
-      // Allow delete only by the author (resource exists on delete)
-      allow delete: if request.auth != null
-                    && request.auth.uid == resource.data.authorUid;
-
-      allow update: if false;
-
-      // posts subcollection
-      match /posts/{postId} {
-        allow read: if true;
-        allow create: if request.auth != null
-                      && request.auth.uid == request.resource.data.authorUid;
-        allow delete: if request.auth != null
-                      && request.auth.uid == resource.data.authorUid;
-        allow update: if false;
-      }
-    }
-  }
 }
