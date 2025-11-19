@@ -1,8 +1,16 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import {
-  getFirestore, collection, addDoc, query, orderBy, onSnapshot,
-  deleteDoc, doc, serverTimestamp, getDocs
+  getFirestore,
+  collection,
+  addDoc,
+  query,
+  orderBy,
+  onSnapshot,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  getDocs
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -17,8 +25,9 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 console.log("Firebase app options:", app?.options || {});
+console.log("projectId:", app?.options?.projectId);
 const auth = getAuth(app);
-onAuthStateChanged(auth, u => console.log("Auth state:", u));
+onAuthStateChanged(auth, u => console.log("Auth state change:", u));
 let db = null;
 try { db = getFirestore(app); } catch (e) { console.warn("Firestore unavailable", e); db = null; }
 
@@ -291,31 +300,55 @@ if (deleteThreadBtn) {
   });
 }
 
-// auth + init
+// auth + init (replace your existing onAuthStateChanged handler with this block)
 onAuthStateChanged(auth, (user) => {
   if (!user) {
-    // file lives under Secretwebsite/public -> index is two levels up
     window.location.href = "../../index.html";
     return;
   }
-  hideLoading();
-  if (greetingEl) greetingEl.textContent = `Hello, ${localStorage.getItem("firstName") || "friend"}!`;
+
+  console.log("Signed in user:", { uid: user.uid, email: user.email, displayName: user.displayName });
+
+  // Prefer Auth displayName, fallback to localStorage
+  const name = user.displayName || localStorage.getItem("firstName") || "friend";
+  if (greetingEl) greetingEl.textContent = `Hello, ${name}!`;
   if (userEmailEl) userEmailEl.textContent = user.email || "";
+
+  hideLoading();
   if (db) initThreadsListener();
   else if (threadsList) threadsList.innerHTML = "<div class='small'>Firestore required for threads/posts.</div>";
 });
 
-// edit name & sign out
+// edit name & sign out (replace your handler)
 if (editNameBtn) {
-  editNameBtn.addEventListener("click", ()=> {
-    const current = localStorage.getItem("firstName") || "";
+  editNameBtn.addEventListener("click", async () => {
+    const current = localStorage.getItem("firstName") || (auth.currentUser && auth.currentUser.displayName) || "";
     const name = prompt("What should we call you?", current) || "";
-    if (name) localStorage.setItem("firstName", name);
-    if (greetingEl) greetingEl.textContent = `Hello, ${localStorage.getItem("firstName") || "friend"}!`;
+    if (!name) return;
+    // save locally
+    localStorage.setItem("firstName", name);
+    if (greetingEl) greetingEl.textContent = `Hello, ${name}!`;
+
+    // also attempt to update the Firebase Auth profile so the name persists cross-device
+    try {
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, { displayName: name });
+        console.log("Auth displayName updated:", name);
+      }
+    } catch (err) {
+      console.warn("Failed to update Auth profile displayName:", err);
+    }
   });
 }
-if (signOutBtn) {
-  signOutBtn.addEventListener("click", async () => {
-    try { await signOut(auth); window.location.href = "../../index.html"; } catch (err) { alert("Sign out failed: " + (err.message || err)); }
-  });
-}
+
+// debug helpers (add these near other helpers)
+window.testReadThreads = async function() {
+  try {
+    if (!db) return console.error("db not initialized");
+    const snap = await getDocs(collection(db, "threads"));
+    console.log("threads count:", snap.size);
+    snap.forEach(d => console.log(d.id, d.data()));
+  } catch (err) {
+    console.error("read threads failed", err);
+  }
+};
