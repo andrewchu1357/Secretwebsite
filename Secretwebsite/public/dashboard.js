@@ -16,7 +16,9 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+console.log("Firebase app options:", app?.options || {});
 const auth = getAuth(app);
+onAuthStateChanged(auth, u => console.log("Auth state:", u));
 let db = null;
 try { db = getFirestore(app); } catch (e) { console.warn("Firestore unavailable", e); db = null; }
 
