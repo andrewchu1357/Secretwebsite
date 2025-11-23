@@ -18,7 +18,7 @@ body {
   color: var(--green); /* default text color green */
 }
 
-h1, h2 {
+h2 {
   color: var(--green);
 }
 
@@ -30,6 +30,6 @@ p {
 /* bold-text kept as requested */
 .bold-text {
   font-weight: bold;
-  font-size: large;
+  font-size: 50px;
   color: var(--accent-red);
 }
