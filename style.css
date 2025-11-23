@@ -1,21 +1,35 @@
+/* blue background with green default text */
+:root{
+  --bg-blue: #2a75c5;
+  --green: #26c706;
+  --muted-green: #11c720;
+  --accent-red: rgba(219, 7, 7, 0.808);
+}
+
+html,body{
+  height:100%;
+  margin:0;
+}
+
 body {
   font-family: Arial, sans-serif;
   margin: 40px;
-  background-color: #2a75c5;
+  background-color: var(--bg-blue);
+  color: var(--green); /* default text color green */
 }
 
-h1 {
-  color: #26c706;
+h1, h2 {
+  color: var(--green);
 }
 
 p {
   font-size: 18px;
-  color: #11c720;
+  color: var(--muted-green);
 }
 
-
+/* bold-text kept as requested */
 .bold-text {
-    font-weight: bold; /* Makes the text bold */
-    font-size: large;
-    color: rgba(219, 7, 7, 0.808);
+  font-weight: bold;
+  font-size: large;
+  color: var(--accent-red);
 }

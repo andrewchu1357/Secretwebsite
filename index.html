@@ -5,63 +5,20 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>My Basic Website</title>
   <link rel="stylesheet" href="style.css">
-  <style>
-    body { font-family: Arial, sans-serif; margin: 40px; }
-    h1 { color: #333; }
-    p { color: #555; }
-  </style>
 </head>
 <body>
   <h2>Login</h2>
   <form id="loginForm">
-    <input type="email" id="email" placeholder="Email" required />
-    <input type="password" id="password" placeholder="Password" required />
-    <button type="submit">Login</button>
   </form>
 
   <h1>Welcome...</h1>
   <p>Do you know me?</p>
   <p>If you do not have an account, please message an admin for account creation.</p>
   <p>For account password reset, message an Admin</p>
-  <p2 class="bold-text">Currently, our database is not setup, so threads and info will not work.</p2>
-
+  <p class="bold-text">Currently, our database is not setup, so threads and info will not work.</p>
 
   <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-      import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
-      import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-
-      const firebaseConfig = {
-        apiKey: "AIzaSyDUGgIUEHJiYfz5s-25OaJh-ME8jtxDZx4",
-        authDomain: "secretweb-71fcc.firebaseapp.com",
-        projectId: "secretweb-71fcc",
-        storageBucket: "secretweb-71fcc.firebasestorage.app",
-        messagingSenderId: "767394475176",
-        appId: "1:767394475176:web:ff0ef5216bd8e61252669d",
-        measurementId: "G-VJRSGWVXY5"
-      };
-
-      const app = initializeApp(firebaseConfig);
-      try { getAnalytics(app); } catch (e) { /* analytics may fail in some dev setups */ }
-      const auth = getAuth(app);
-
-      document.getElementById("loginForm").addEventListener("submit", (e) => {
-        e.preventDefault();
-        const email = document.getElementById("email").value;
-        const password = document.getElementById("password").value;
-
-        signInWithEmailAndPassword(auth, email, password)
-          .then((userCredential) => {
-            console.log("Login OK, redirecting to dashboard...");
-            // Redirect to the dashboard inside Secretwebsite/public
-            window.location.href = "Secretwebsite/public/dashboard.html";
-          })
-          .catch((error) => {
-            console.error("Login failed:", error);
-            alert("Login failed: " + error.message);
-          });
-      });
-    </script>
+  </script>
 </body>
 </html>
 
