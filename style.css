@@ -1,74 +1,17 @@
 body {
   font-family: Arial, sans-serif;
   margin: 40px;
-  background-color: #0056b3;
+  background-color: #3794f7;
 }
 
 h1 {
-  color: #333;
+  color: #26c706;
 }
 
-p {
-  color: #555;
-}
 
-/* Styles for the admin console */
-.admin-container {
-  margin: 20px;
-  padding: 20px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  background-color: #f9f9f9;
-}
-
-.admin-header {
-  color: #444;
-  font-size: 24px;
-  margin-bottom: 20px;
-}
-
-.admin-button {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.admin-button:hover {
-  background-color: #0056b3;
-}
-
-.user-list {
-  list-style-type: none;
-  padding: 0;
-}
-
-.user-item {
-  padding: 10px;
-  border-bottom: 1px solid #ddd;
-}
-
-.user-item:last-child {
-  border-bottom: none;
-}
-
-.delete-button {
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  padding: 5px 10px;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.delete-button:hover {
-  background-color: #c82333;
-}
 
 .bold-text {
     font-weight: bold; /* Makes the text bold */
     font-size: large;
-    color: mediumspringgreen;
+    color: rgba(219, 7, 7, 0.808);
 }
