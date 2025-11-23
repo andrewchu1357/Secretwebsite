@@ -341,6 +341,33 @@ if (editNameBtn) {
   });
 }
 
+// Robust sign-out handler: attach after DOM ready, check imports, log errors
+document.addEventListener("DOMContentLoaded", () => {
+  if (typeof signOut !== "function") {
+    console.error("signOut is not available. Make sure you imported signOut from firebase/auth.");
+    return;
+  }
+
+  const signOutBtnEl = document.getElementById("signOut") || document.querySelector("[data-signout]");
+  if (!signOutBtnEl) {
+    console.warn("Sign-out button not found. Add id=\"signOut\" to your sign out button in dashboard.html.");
+    return;
+  }
+
+  signOutBtnEl.addEventListener("click", async (ev) => {
+    ev.preventDefault();
+    try {
+      await signOut(auth);
+      console.log("User signed out.");
+      // Redirect to root index — adjust if your hosting root is different
+      window.location.href = "/index.html";
+    } catch (err) {
+      console.error("Sign out failed:", err);
+      alert("Sign out failed: " + (err?.message || err));
+    }
+  });
+});
+
 // debug helpers (add these near other helpers)
 window.testReadThreads = async function() {
   try {
