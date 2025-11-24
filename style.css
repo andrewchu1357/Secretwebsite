@@ -11,7 +11,7 @@ body {
 }
 
 h2 {
-  color: rgb(181, 8, 224);
+  color: rgb(181, 30, 219);
 }
 
 p {
@@ -24,4 +24,8 @@ p {
   font-weight: bold;
   font-size: 50px;
   color: red;
+}
+p3 {
+  font-size: 20px;
+  color: rgb(21, 7, 224);
 }
