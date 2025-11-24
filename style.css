@@ -28,5 +28,5 @@ p {
 .notification {
   font-size: 40px;
   color: rgb(21, 7, 224);
-  font-display: block;
+  font-family: 'Courier New', Courier, monospace;
 }
