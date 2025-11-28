@@ -1,72 +1,42 @@
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      margin-top: 50px;
-      background: #001f3f;
-      color: #fff;
-    }
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  background: #001f3f;
+  color: #fff;
+  margin-top: 50px;
+}
 
-    h1 { margin-bottom: 20px; }
+h1 {
+  margin-bottom: 20px;
+}
 
-    #countdown {
-      font-size: 2em;
-      margin-bottom: 40px;
-    }
+#countdown {
+  font-size: 2em;
+  margin-bottom: 40px;
+}
 
-    /* 🎄 Christmas Tree */
-    .tree {
-      position: relative;
-      width: 0;
-      height: 0;
-      margin: 0 auto;
-      border-left: 60px solid transparent;
-      border-right: 60px solid transparent;
-      border-bottom: 100px solid green;
-      animation: sway 3s infinite ease-in-out;
-    }
+/* 🎄 Simple Tree */
+.tree {
+  margin: 0 auto;
+  width: 0;
+  height: 0;
+  position: relative;
+}
 
-    .tree:before, .tree:after {
-      content: '';
-      position: absolute;
-      left: -80px;
-      border-left: 80px solid transparent;
-      border-right: 80px solid transparent;
-      border-bottom: 120px solid green;
-    }
+.layer {
+  border-left: 60px solid transparent;
+  border-right: 60px solid transparent;
+  border-bottom: 80px solid green;
+  margin: 0 auto;
+}
 
-    .tree:before { top: -90px; }
-    .tree:after { top: -180px; }
+.layer1 { margin-top: 20px; }
+.layer2 { margin-top: -20px; }
+.layer3 { margin-top: -20px; }
 
-    /* Trunk */
-    .trunk {
-      width: 30px;
-      height: 40px;
-      background: #8B4513;
-      margin: 0 auto;
-    }
-
-    /* Lights (twinkling dots) */
-    .light {
-      position: absolute;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: red;
-      animation: twinkle 1.5s infinite alternate;
-    }
-
-    .light:nth-child(1) { top: -160px; left: -10px; background: yellow; }
-    .light:nth-child(2) { top: -120px; left: 30px; background: red; }
-    .light:nth-child(3) { top: -60px; left: -20px; background: blue; }
-    .light:nth-child(4) { top: -30px; left: 40px; background: orange; }
-
-    @keyframes sway {
-      0% { transform: rotate(-2deg); }
-      50% { transform: rotate(2deg); }
-      100% { transform: rotate(-2deg); }
-    }
-
-    @keyframes twinkle {
-      from { opacity: 0.3; }
-      to { opacity: 1; }
-    }
+.trunk {
+  width: 20px;
+  height: 40px;
+  background: #8B4513;
+  margin: 0 auto;
+}
