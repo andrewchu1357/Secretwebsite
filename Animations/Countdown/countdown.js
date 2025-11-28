@@ -19,3 +19,33 @@ function updateCountdown() {
 }
 
 const timer = setInterval(updateCountdown, 1000);
+
+
+// filepath suggestion: c:\Users\andre\Documents\GitHub\Secretwebsite\Animations\Countdown\snow.js
+(function makeSnow({count=80, maxSize=22, minSize=6}={}) {
+  const container = document.body;
+  for (let i=0;i<count;i++){
+    const f = document.createElement('div');
+    f.className = 'flake';
+    f.textContent = '❅'; // or '•' or use SVG
+    const size = Math.random() * (maxSize-minSize) + minSize;
+    f.style.fontSize = size + 'px';
+    f.style.left = Math.random()*100 + 'vw';
+    f.style.opacity = (0.3 + Math.random()*0.9).toFixed(2);
+    const duration = 6 + Math.random()*10;
+    const delay = Math.random()*5;
+    const sway = (Math.random()*80 - 40) + 'px';
+    container.appendChild(f);
+    requestAnimationFrame(() => {
+      f.animate([
+        { transform: `translateY(-20vh) translateX(0)` },
+        { transform: `translateY(120vh) translateX(${sway})` }
+      ], {
+        duration: duration * 1000,
+        iterations: Infinity,
+        delay: delay * 1000,
+        easing: 'linear'
+      });
+    });
+  }
+})();
