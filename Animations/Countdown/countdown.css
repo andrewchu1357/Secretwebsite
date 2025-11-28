@@ -67,7 +67,7 @@ h1 {
 }
 
 .tree {
-  position: relative;
+  position: center;
   height: 50vmin;
   width: 25vmin;
   transform-style: preserve-3d;
