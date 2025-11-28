@@ -1,15 +1,100 @@
-#countdown {
-  font-size: 3em;
-  color: #ff4500;
-  letter-spacing: 2px;
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  margin-top: 50px;
+  background: #001f3f; /* Dark blue background */
+  color: #fff;
 }
 
-.body {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  background-color: #000000;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+h1 {
+  margin-bottom: 20px;
+}
+
+#countdown {
+  font-size: 2em;
+  margin-bottom: 40px;
+}
+
+/* 🎄 Christmas Tree */
+.tree {
+  position: relative;
+  width: 0;
+  height: 0;
+  margin: 0 auto;
+  border-left: 60px solid transparent;
+  border-right: 60px solid transparent;
+  border-bottom: 100px solid green;
+  animation: sway 3s infinite ease-in-out;
+}
+
+.tree:before,
+.tree:after {
+  content: '';
+  position: absolute;
+  left: -80px;
+  border-left: 80px solid transparent;
+  border-right: 80px solid transparent;
+  border-bottom: 120px solid green;
+}
+
+.tree:before {
+  top: -90px;
+}
+
+.tree:after {
+  top: -180px;
+}
+
+/* Trunk */
+.trunk {
+  width: 30px;
+  height: 40px;
+  background: #8B4513;
+  margin: 0 auto;
+}
+
+/* Lights (twinkling dots) */
+.light {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: red;
+  animation: twinkle 1.5s infinite alternate;
+}
+
+.light:nth-child(1) {
+  top: -160px;
+  left: -10px;
+  background: yellow;
+}
+
+.light:nth-child(2) {
+  top: -120px;
+  left: 30px;
+  background: red;
+}
+
+.light:nth-child(3) {
+  top: -60px;
+  left: -20px;
+  background: blue;
+}
+
+.light:nth-child(4) {
+  top: -30px;
+  left: 40px;
+  background: orange;
+}
+
+/* Animations */
+@keyframes sway {
+  0% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+  100% { transform: rotate(-2deg); }
+}
+
+@keyframes twinkle {
+  from { opacity: 0.3; }
+  to { opacity: 1; }
 }
