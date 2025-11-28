@@ -120,14 +120,14 @@ body {
 }
 
 h1 {
-  text-align: center;
+  text-align: top center;
   font-size: 3rem;
   color: #fff;
   margin-bottom: 2rem;
 }
 
 h2 {
-  text-align: center;
+    text-align: top center;
   font-size: 2rem;
   color: #fff;
   margin-bottom: 2rem;
