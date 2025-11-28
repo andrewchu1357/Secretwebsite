@@ -118,3 +118,17 @@ body {
     background: #f00;
   }
 }
+
+h1 {
+  text-align: center;
+  font-size: 3rem;
+  color: #fff;
+  margin-bottom: 2rem;
+}
+
+h2 {
+  text-align: center;
+  font-size: 2rem;
+  color: #fff;
+  margin-bottom: 2rem;
+}
