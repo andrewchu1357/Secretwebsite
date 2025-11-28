@@ -126,9 +126,9 @@ h1 {
   margin-bottom: 2rem;
 }
 
-
-#countdown {
-  font-size: 2rem;
-  color: blue;
+h2 {
     text-align: bottom center;
+  font-size: 2rem;
+  color: #df0a0a;
+  margin-bottom: 2rem;
 }
