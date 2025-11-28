@@ -179,16 +179,3 @@ h2 {
   margin-bottom: 2rem;
 }
 
-/* --- Snow JS helper styles --- */
-.flake {
-  position: fixed;
-  top: -10vh;
-  color: white;
-  user-select: none;
-  pointer-events: none;
-  mix-blend-mode: screen;
-  font-size: 12px; /* base, will be overridden */
-  opacity: 0.9;
-  will-change: transform, opacity;
-  transition: transform linear, opacity linear;
-}
