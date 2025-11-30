@@ -8,7 +8,7 @@ app.use(cors());           // allow cross-origin during dev
 app.use(express.json());
 app.use(express.static("public")); // serve website files
 
-const apiKey = process.env.GEMINI_API_KEY;
+const apiKey = process.env.AIzaSyDO7uhz5-vY4BYgwAhAEVZlDR0y6yYmpxY;
 if (!apiKey) {
   console.error("GEMINI_API_KEY not set; set env var before starting server.");
   process.exit(1);
