@@ -1,24 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Neon Dash: Playable Edition</title>
+    <title>Neon Dash: Optimized</title>
     <style>
-        body { 
-            margin: 0; 
-            background: #020202; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh; 
-            overflow: hidden; 
-            font-family: 'Segoe UI', sans-serif; 
-            user-select: none;
-        }
-        canvas { 
-            border: 4px solid #333; 
-            box-shadow: 0 0 60px rgba(0, 255, 255, 0.15); 
-            background: linear-gradient(to bottom, #050505, #151515);
-        }
+        body { margin: 0; background: #020202; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Segoe UI', sans-serif; user-select: none; }
+        canvas { border: 2px solid #333; background: #050505; }
     </style>
 </head>
 <body>
@@ -30,454 +16,207 @@ const ctx = canvas.getContext("2d");
 canvas.width = 900;
 canvas.height = 500;
 
-// --- CONFIGURATION & TUNING ---
-const GRAVITY = 0.75;         // Slightly reduced for better "float"
-const JUMP_FORCE = -12.5;     // Balanced jump height
-const SHIP_LIFT = -0.6;       // Gentle thrust
-const SHIP_GRAVITY = 0.35;    // Predictable ship fall
-const SPEED = 7;              // Comfortable scroll speed
+// --- CONFIGURATION ---
+const GRAVITY = 0.75;
+const JUMP_FORCE = -12.5;
+const SPEED = 420; // Pixels per second (Delta-time based)
 const GROUND_Y = 400;
+const STATE = { COVER: 0, SELECT: 1, PLAYING: 2, DEAD: 3, WON: 4 };
 
-const STATE = { COVER: 0, LEVEL_SELECT: 1, PLAYING: 2, DEAD: 3, WON: 4 };
 let currentState = STATE.COVER;
-
-// --- VARIABLES ---
-let player = { x: 100, y: GROUND_Y, w: 30, h: 30, dy: 0, angle: 0, mode: 'cube', trail: [] };
-let cameraX = 0;
+let lastTime = 0;
+let player = { x: 100, y: GROUND_Y, w: 30, h: 30, dy: 0, angle: 0, mode: 'cube', isHolding: false };
 let obstacles = [];
-let particles = [];
+let cameraX = 0;
 let levelLength = 0;
 let currentLevelId = 1;
-let frameCount = 0;
 
-// --- HITBOX PADDING (Forgiveness) ---
-// Pixels to ignore on the edges of the player for collision
-const HITBOX_PAD = 8; 
-
-// --- LEVEL BUILDER ---
-let cx = 0; // Cursor X for building
-
-function resetBuilder() {
+// --- OPTIMIZED LEVEL BUILDER ---
+let cx = 800;
+function resetLevel(lvl) {
     obstacles = [];
-    cx = 800; // Start building off-screen
-}
-
-function addFloorSpike(count) {
-    for(let i=0; i<count; i++) {
-        obstacles.push({type: 'spike', x: cx + (i*50), y: GROUND_Y});
-    }
-    cx += (count * 50) + 300; // Add 300px safe zone after spikes
-}
-
-function addPlatform(h, w, spikeTop) {
-    obstacles.push({type: 'block', x: cx, y: GROUND_Y - h, w: w, h: h});
-    if(spikeTop) {
-        obstacles.push({type: 'spike', x: cx + w/2 - 15, y: GROUND_Y - h - 30});
-    }
-    cx += w + 250; // Add safe zone after platform
-}
-
-function addShipPortal() {
-    obstacles.push({type: 'portal_ship', x: cx, y: 250, w: 40, h: 80});
-    cx += 200; // Gap before flying starts
-}
-
-function addCubePortal() {
-    obstacles.push({type: 'portal_cube', x: cx, y: 250, w: 40, h: 80});
-    cx += 200;
-}
-
-// --- LEVEL DESIGNS ---
-
-function buildLevel1() {
-    resetBuilder();
-    // Section 1: The Basics (Cube)
-    addFloorSpike(1);
-    addFloorSpike(2);
-    addPlatform(60, 200, false);
-    addFloorSpike(2);
-    
-    // Section 2: The Flight (Ship) - WIDE TUNNEL
-    addShipPortal();
-    for(let i=0; i<10; i++) {
-        // Ceiling
-        obstacles.push({type: 'block', x: cx + (i*200), y: 0, w: 200, h: 60});
-        // Floor mounds (gentle)
-        let h = 50 + Math.sin(i)*40; 
-        obstacles.push({type: 'block', x: cx + (i*200), y: 400-h, w: 200, h: h});
-    }
-    cx += 2000;
-
-    // Section 3: Landing (Cube)
-    addCubePortal();
-    addPlatform(50, 400, false); // Landing pad
-    addFloorSpike(1);
-    addFloorSpike(1);
-    
-    // Finish
-    cx += 200;
-    obstacles.push({type: 'finish', x: cx, y: 0, w: 50, h: 500});
-    levelLength = cx;
-}
-
-function buildLevel2() {
-    resetBuilder();
-    // Section 1: Stairs (Cube)
-    addPlatform(50, 100, false); cx -= 150; // Reduce gap for stairs
-    addPlatform(100, 100, false); cx -= 150;
-    addPlatform(150, 100, false);
-    
-    // Section 2: The Cave (Ship) - TIGHTER TUNNEL
-    addShipPortal();
-    for(let i=0; i<15; i++) {
-        let ceilingH = 100 + Math.random() * 80;
-        let floorH = 100 + Math.random() * 80;
-        obstacles.push({type: 'block', x: cx + (i*150), y: 0, w: 150, h: ceilingH});
-        obstacles.push({type: 'block', x: cx + (i*150), y: 400-floorH, w: 150, h: floorH});
-    }
-    cx += 2250;
-
-    // Section 3: Precision (Cube)
-    addCubePortal();
-    addPlatform(100, 300, true); // Spike on top!
-    addFloorSpike(2);
-    
-    cx += 200;
-    obstacles.push({type: 'finish', x: cx, y: 0, w: 50, h: 500});
-    levelLength = cx;
-}
-
-// --- CORE LOGIC ---
-
-function init(lvl) {
+    cx = 800;
     currentLevelId = lvl;
-    if(lvl === 1) buildLevel1(); else buildLevel2();
     
-    player = { 
-        x: 100, y: GROUND_Y - 30, w: 30, h: 30, 
-        dy: 0, angle: 0, mode: 'cube', onGround: true, trail: [] 
-    };
+    if(lvl === 1) {
+        addSpikes(1); addSpikes(2); addBlock(60, 200, true); addSpikes(3);
+        addPortal('ship');
+        for(let i=0; i<5; i++) {
+            addBlock(60, 200, false, 0); // Ceiling
+            addBlock(60, 200, false, 340); // Floor
+            cx += 100;
+        }
+    } else {
+        addBlock(50, 100); cx -= 150; addBlock(100, 100); cx -= 150; addBlock(150, 100);
+        addPortal('ship');
+        for(let i=0; i<8; i++) {
+            addBlock(120, 100, false, 0);
+            addBlock(120, 100, false, 280);
+            cx += 50;
+        }
+    }
+    obstacles.push({type: 'finish', x: cx + 400, y: 0, w: 50, h: 500});
+    levelLength = cx + 400;
+    
+    player = { x: 100, y: GROUND_Y - 30, w: 30, h: 30, dy: 0, angle: 0, mode: 'cube', isHolding: false };
     cameraX = 0;
-    particles = [];
     currentState = STATE.PLAYING;
 }
 
-function update() {
+function addSpikes(n) { 
+    for(let i=0; i<n; i++) obstacles.push({type: 'spike', x: cx + (i*45), y: GROUND_Y}); 
+    cx += (n*45) + 300; 
+}
+function addBlock(h, w, s, yOverride) { 
+    let y = yOverride !== undefined ? yOverride : GROUND_Y - h;
+    obstacles.push({type: 'block', x: cx, y: y, w: w, h: h}); 
+    if(s) obstacles.push({type: 'spike', x: cx + w/2 - 15, y: y - 30});
+    cx += w + 250; 
+}
+function addPortal(m) { obstacles.push({type: 'portal', mode: m, x: cx, y: 200, w: 40, h: 100}); cx += 200; }
+
+// --- GAME LOOP WITH DELTA TIME ---
+function loop(timestamp) {
+    let dt = (timestamp - lastTime) / 1000;
+    if (dt > 0.1) dt = 0.1; // Cap dt to prevent huge leaps on lag
+    lastTime = timestamp;
+
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+}
+
+function update(dt) {
     if (currentState !== STATE.PLAYING) return;
-    frameCount++;
 
-    // 1. Movement
-    player.x += SPEED;
-    // Camera follows player but looks slightly ahead (+250)
-    cameraX = player.x - 250; 
+    // Move player based on time, not frames
+    player.x += SPEED * dt;
+    cameraX = player.x - 200;
 
-    // 2. Trail Logic
-    if(frameCount % 3 === 0) {
-        player.trail.push({x: player.x, y: player.y, life: 1.0});
-    }
-    player.trail.forEach(t => t.life -= 0.05);
-    player.trail = player.trail.filter(t => t.life > 0);
-
-    // 3. Physics
+    // Physics
     if (player.mode === 'cube') {
         player.dy += GRAVITY;
         player.y += player.dy;
-        
-        if (!player.onGround) player.angle += 6;
-        else player.angle = Math.round(player.angle / 90) * 90;
-        
-    } else { // Ship
-        player.dy += SHIP_GRAVITY;
-        if(player.isHolding) player.dy += SHIP_LIFT;
-        
-        // Cap Speed (Makes ship controllable)
-        if(player.dy > 9) player.dy = 9;
-        if(player.dy < -9) player.dy = -9;
-
-        player.y += player.dy;
-        player.angle = player.dy * 2.5;
-    }
-
-    // 4. World Bounds
-    if (player.y > GROUND_Y - 30) {
-        player.y = GROUND_Y - 30;
-        player.dy = 0;
-        player.onGround = true;
+        if (player.y < GROUND_Y - 30) player.angle += 360 * dt; // Rotate 1 full circle/sec
+        else { player.y = GROUND_Y - 30; player.dy = 0; player.angle = Math.round(player.angle/90)*90; }
     } else {
-        player.onGround = false;
+        player.dy += (player.isHolding ? -0.8 : 0.5); // Ship logic
+        player.dy = Math.max(-8, Math.min(8, player.dy));
+        player.y += player.dy;
+        player.angle = player.dy * 2;
+        if (player.y > GROUND_Y - 30) { player.y = GROUND_Y - 30; player.dy = 0; }
+        if (player.y < 0) { player.y = 0; player.dy = 0; }
     }
-    if (player.y < 0) { player.y = 0; player.dy = 0; }
 
-    // 5. Collision
-    checkCollision();
+    // Optimized Collision (Only check objects near player)
+    for (let obj of obstacles) {
+        if (obj.x > player.x + 100 || obj.x + 100 < player.x) continue;
 
-    // 6. Particles
-    particles.forEach((p, i) => {
-        p.x += p.vx; p.y += p.vy; p.life -= 0.05;
-        if(p.life <= 0) particles.splice(i, 1);
-    });
-}
-
-function checkCollision() {
-    // Player Hitbox (Shrunk for fairness)
-    const p = {
-        l: player.x + HITBOX_PAD,
-        r: player.x + player.w - HITBOX_PAD,
-        t: player.y + HITBOX_PAD,
-        b: player.y + player.h - HITBOX_PAD
-    };
-
-    for(let obj of obstacles) {
-        // Object Hitbox
-        // Spikes are thinner horizontally
-        let padX = obj.type === 'spike' ? 10 : 0;
-        let padY = obj.type === 'spike' ? 12 : 0; // Don't die on invisible spike tip
-
-        const o = {
-            l: obj.x + padX,
-            r: obj.x + (obj.w || 30) - padX,
-            t: obj.y + padY,
-            b: obj.y + (obj.h || 30)
-        };
-
-        // AABB Overlap
-        if (p.l < o.r && p.r > o.l && p.t < o.b && p.b > o.t) {
+        if (player.x < obj.x + (obj.w || 30) - 5 && player.x + 25 > obj.x + 5 &&
+            player.y < obj.y + (obj.h || 30) - 5 && player.y + 25 > obj.y + 5) {
             
-            if (obj.type === 'spike') return die();
+            if (obj.type === 'spike') currentState = STATE.DEAD;
             if (obj.type === 'finish') currentState = STATE.WON;
-            
-            if (obj.type === 'portal_ship') {
-                player.mode = 'ship'; 
-                spawnExplosion(player.x, player.y, '#f0f');
-            }
-            if (obj.type === 'portal_cube') {
-                player.mode = 'cube'; 
-                player.angle = 0;
-                spawnExplosion(player.x, player.y, '#0ff');
-            }
-            
+            if (obj.type === 'portal') player.mode = obj.mode;
             if (obj.type === 'block') {
-                // Terrain Collision Logic
-                // Did we hit the top?
-                const prevY = player.y - player.dy;
-                if (prevY + player.h <= obj.y + 15 && player.dy >= 0) {
-                    player.y = obj.y - player.h;
-                    player.dy = 0;
-                    player.onGround = true;
-                    if(player.mode === 'cube') player.angle = Math.round(player.angle / 90) * 90;
-                } 
-                // Did we hit the ceiling?
-                else if (prevY >= obj.y + obj.h - 15 && player.dy < 0) {
-                    player.y = obj.y + obj.h;
-                    player.dy = 0;
-                }
-                // Must be a side hit
-                else {
-                    return die();
-                }
+                if (player.y + 25 < obj.y + 15 && player.dy >= 0) { // Landed on top
+                    player.y = obj.y - 30; player.dy = 0;
+                } else { currentState = STATE.DEAD; }
             }
         }
     }
 }
 
-function die() {
-    spawnExplosion(player.x, player.y, '#fff');
-    currentState = STATE.DEAD;
-}
-
-function spawnExplosion(x, y, color) {
-    for(let i=0; i<20; i++) {
-        particles.push({
-            x: x, y: y,
-            vx: (Math.random()-0.5)*15, vy: (Math.random()-0.5)*15,
-            life: 1.0, color: color
-        });
-    }
-}
-
-// --- DRAWING ---
-
 function draw() {
-    // 1. Background
-    ctx.fillStyle = "#0a0a0a";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Parallax Grid
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#1a1a1a";
-    let gx = -(cameraX * 0.5) % 80;
-    for(let i=gx; i<canvas.width; i+=80) {
-        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+    // Grid
+    ctx.strokeStyle = "#111";
+    for(let i=0; i<canvas.width; i+=50) {
+        ctx.beginPath(); ctx.moveTo(i - (cameraX % 50), 0); ctx.lineTo(i - (cameraX % 50), canvas.height); ctx.stroke();
     }
 
     ctx.save();
     ctx.translate(-cameraX, 0);
-
-    // 2. Floor
-    ctx.strokeStyle = currentLevelId === 1 ? "#0ff" : "#f0f";
-    ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.moveTo(cameraX, GROUND_Y); ctx.lineTo(cameraX+canvas.width, GROUND_Y); ctx.stroke();
-
-    // 3. Trail
-    player.trail.forEach(t => {
-        ctx.fillStyle = `rgba(255, 255, 255, ${t.life * 0.4})`;
-        ctx.fillRect(t.x, t.y, 30, 30);
-    });
-
-    // 4. Objects
-    obstacles.forEach(obj => {
-        if(obj.type === 'block') {
-            ctx.fillStyle = "#000";
-            ctx.strokeStyle = currentLevelId === 1 ? "#0ff" : "#f0f";
-            ctx.lineWidth = 2;
-            ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
-            ctx.strokeRect(obj.x, obj.y, obj.w, obj.h);
-        } else if (obj.type === 'spike') {
-            ctx.fillStyle = "#fff";
-            ctx.beginPath();
-            ctx.moveTo(obj.x, obj.y);
-            ctx.lineTo(obj.x + 15, obj.y - 30);
-            ctx.lineTo(obj.x + 30, obj.y);
-            ctx.fill();
-        } else if (obj.type.includes('portal')) {
-            ctx.fillStyle = obj.type.includes('ship') ? '#f0f' : '#0ff';
-            ctx.globalAlpha = 0.7;
-            ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
-            ctx.globalAlpha = 1.0;
-        } else if (obj.type === 'finish') {
-            ctx.fillStyle = "yellow";
-            ctx.fillRect(obj.x, 0, 50, 500);
-        }
-    });
-
-    // 5. Player
-    if(currentState === STATE.PLAYING || currentState === STATE.WON) {
-        ctx.save();
-        ctx.translate(player.x + 15, player.y + 15);
-        ctx.rotate(player.angle * Math.PI / 180);
-        
-        ctx.fillStyle = player.mode === 'ship' ? "#f0f" : "#0ff";
-        ctx.shadowBlur = 20; ctx.shadowColor = ctx.fillStyle;
-        
-        if(player.mode === 'ship') {
-            ctx.beginPath(); ctx.moveTo(-15, 10); ctx.lineTo(15, 0); ctx.lineTo(-15, -10); ctx.fill();
-        } else {
-            ctx.fillRect(-15, -15, 30, 30);
-            ctx.fillStyle = "black"; ctx.fillRect(5, -5, 8, 8); // Eye
-        }
-        ctx.restore();
-    }
-
-    // 6. Particles
-    particles.forEach(p => {
-        ctx.fillStyle = p.color;
-        ctx.globalAlpha = p.life;
-        ctx.fillRect(p.x, p.y, 6, 6);
-    });
-    ctx.globalAlpha = 1.0;
-
-    ctx.restore(); // End Camera
-
-    // --- UI OVERLAYS ---
-    drawUI();
-}
-
-function drawUI() {
-    ctx.textAlign = "center";
     
-    // Progress Bar (In Game)
-    if(currentState === STATE.PLAYING) {
-        let pct = Math.min(1, Math.max(0, player.x / levelLength));
-        ctx.fillStyle = "#333"; ctx.fillRect(300, 30, 300, 10);
-        ctx.fillStyle = "#fff"; ctx.fillRect(300, 30, 300 * pct, 10);
-    }
+    // Draw Level
+    ctx.strokeStyle = "#0ff"; ctx.beginPath(); ctx.moveTo(cameraX, GROUND_Y); ctx.lineTo(cameraX+canvas.width, GROUND_Y); ctx.stroke();
+    
+    obstacles.forEach(obj => {
+        if(obj.x + 400 < cameraX || obj.x - 900 > cameraX) return; // Culling
+        ctx.fillStyle = obj.type === 'block' ? "#000" : (obj.type === 'finish' ? "yellow" : "#fff");
+        if(obj.type === 'block') { ctx.fillRect(obj.x, obj.y, obj.w, obj.h); ctx.strokeRect(obj.x, obj.y, obj.w, obj.h); }
+        else if(obj.type === 'spike') {
+            ctx.beginPath(); ctx.moveTo(obj.x, obj.y); ctx.lineTo(obj.x+15, obj.y-30); ctx.lineTo(obj.x+30, obj.y); ctx.fill();
+        } else if(obj.type === 'portal') {
+            ctx.fillStyle = obj.mode === 'ship' ? "#f0f" : "#0f0"; ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
+        } else if(obj.type === 'finish') { ctx.fillRect(obj.x, 0, 50, 500); }
+    });
 
-    if (currentState === STATE.COVER) {
-        // Pulse effect
-        let scale = 1 + Math.sin(Date.now() / 300) * 0.05;
-        
-        ctx.fillStyle = "rgba(0,0,0,0.85)";
-        ctx.fillRect(0,0,canvas.width, canvas.height);
-        
-        ctx.shadowBlur = 30; ctx.shadowColor = "#0ff";
-        ctx.fillStyle = "white";
-        ctx.font = "bold 80px Segoe UI";
-        ctx.fillText("NEON DASH", canvas.width/2, 200);
-        
-        ctx.shadowBlur = 0;
-        ctx.font = `bold ${30 * scale}px Segoe UI`;
-        ctx.fillStyle = "#0ff";
-        ctx.fillText("CLICK TO START", canvas.width/2, 350);
-    } 
-    else if (currentState === STATE.LEVEL_SELECT) {
-        ctx.fillStyle = "#000"; ctx.fillRect(0,0,canvas.width, canvas.height);
-        ctx.fillStyle = "white"; ctx.font = "40px Segoe UI"; ctx.fillText("SELECT LEVEL", canvas.width/2, 100);
-        
-        drawBtn(1, "LEVEL 1: WARMUP", "#0ff", 200);
-        drawBtn(2, "LEVEL 2: CAVE RUN", "#f0f", 320);
+    // Player
+    ctx.save();
+    ctx.translate(player.x + 15, player.y + 15);
+    ctx.rotate(player.angle * Math.PI / 180);
+    ctx.fillStyle = player.mode === 'ship' ? "#f0f" : "#0ff";
+    ctx.fillRect(-15, -15, 30, 30);
+    ctx.restore();
+    
+    ctx.restore();
+
+    // UI
+    if(currentState === STATE.COVER) drawOverlay("NEON DASH", "CLICK TO START");
+    if(currentState === STATE.SELECT) {
+        ctx.fillStyle = "white"; ctx.font = "30px Arial"; ctx.textAlign = "center";
+        ctx.fillText("SELECT LEVEL", 450, 150);
+        ctx.strokeRect(350, 200, 200, 50); ctx.fillText("LEVEL 1", 450, 235);
+        ctx.strokeRect(350, 280, 200, 50); ctx.fillText("LEVEL 2", 450, 315);
     }
-    else if (currentState === STATE.DEAD) {
-        ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0,0,canvas.width, canvas.height);
-        ctx.fillStyle = "white"; ctx.font = "50px Segoe UI"; ctx.fillText("CRASHED", canvas.width/2, 220);
-        ctx.font = "20px Segoe UI"; ctx.fillText("Press SPACE to Retry", canvas.width/2, 270);
-        let pct = Math.floor((player.x / levelLength) * 100);
-        ctx.fillText(`Progress: ${pct}%`, canvas.width/2, 320);
-    }
-    else if (currentState === STATE.WON) {
-        ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(0,0,canvas.width, canvas.height);
-        ctx.fillStyle = "#0f0"; ctx.font = "60px Segoe UI"; ctx.fillText("COMPLETE!", canvas.width/2, 220);
-        ctx.fillStyle = "white"; ctx.font = "20px Segoe UI"; ctx.fillText("Click to Menu", canvas.width/2, 280);
+    if(currentState === STATE.DEAD || currentState === STATE.WON) {
+        drawOverlay(currentState === STATE.DEAD ? "CRASHED" : "WINNER!", "SPACE to RESTART");
+        // Home Icon
+        ctx.strokeStyle = "white"; ctx.strokeRect(425, 350, 50, 50);
+        ctx.beginPath(); ctx.moveTo(425, 370); ctx.lineTo(450, 350); ctx.lineTo(475, 370); ctx.stroke();
+        ctx.fillText("HOME", 450, 430);
     }
 }
 
-function drawBtn(id, txt, col, y) {
-    ctx.strokeStyle = col; ctx.lineWidth = 2;
-    ctx.strokeRect(canvas.width/2 - 150, y, 300, 70);
-    ctx.fillStyle = col; ctx.font = "25px Segoe UI";
-    ctx.fillText(txt, canvas.width/2, y+45);
+function drawOverlay(t1, t2) {
+    ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(0,0,900,500);
+    ctx.fillStyle = "white"; ctx.textAlign = "center";
+    ctx.font = "50px Arial"; ctx.fillText(t1, 450, 200);
+    ctx.font = "20px Arial"; ctx.fillText(t2, 450, 260);
 }
 
-// --- INPUT ---
-function handleInput(e) {
-    if(e.code === "Space") e.preventDefault();
+// --- INPUTS ---
+window.addEventListener("mousedown", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
 
-    if(currentState === STATE.COVER) {
-        currentState = STATE.LEVEL_SELECT;
-        return;
+    if(currentState === STATE.COVER) currentState = STATE.SELECT;
+    else if(currentState === STATE.SELECT) {
+        if(mx > 350 && mx < 550 && my > 200 && my < 250) resetLevel(1);
+        if(mx > 350 && mx < 550 && my > 280 && my < 330) resetLevel(2);
     }
-    if(currentState === STATE.LEVEL_SELECT) {
-        if(e.type === 'mousedown') {
-            let rect = canvas.getBoundingClientRect();
-            let y = e.clientY - rect.top;
-            if(y > 200 && y < 270) init(1);
-            if(y > 320 && y < 390) init(2);
-        }
-        return;
+    else if(currentState === STATE.PLAYING) player.isHolding = true;
+    else { // HOME button click detection
+        if(mx > 425 && mx < 475 && my > 350 && my < 400) currentState = STATE.SELECT;
+        else resetLevel(currentLevelId);
     }
-    if(currentState === STATE.DEAD) {
-        if(e.code === 'Space' || e.type === 'mousedown') init(currentLevelId);
-        return;
-    }
-    if(currentState === STATE.WON) {
-        if(e.type === 'mousedown' || e.code === 'Space') currentState = STATE.LEVEL_SELECT;
-        return;
-    }
-
-    if(currentState === STATE.PLAYING) {
-        if(e.code === 'Space' || e.type === 'mousedown') {
-            if(player.mode === 'cube' && player.onGround) player.dy = JUMP_FORCE;
-            if(player.mode === 'ship') player.isHolding = true;
+});
+window.addEventListener("mouseup", () => player.isHolding = false);
+window.addEventListener("keydown", (e) => {
+    if(e.code === "Space") {
+        if(currentState === STATE.PLAYING) {
+            if(player.mode === 'cube' && player.y >= GROUND_Y - 31) player.dy = JUMP_FORCE;
+            player.isHolding = true;
+        } else if(currentState === STATE.DEAD || currentState === STATE.WON) {
+            resetLevel(currentLevelId);
         }
     }
-}
+});
+window.addEventListener("keyup", (e) => { if(e.code === "Space") player.isHolding = false; });
 
-window.addEventListener('mousedown', handleInput);
-window.addEventListener('keydown', handleInput);
-window.addEventListener('mouseup', () => player.isHolding = false);
-window.addEventListener('keyup', () => player.isHolding = false);
-
-function loop() { update(); draw(); requestAnimationFrame(loop); }
-loop();
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>
