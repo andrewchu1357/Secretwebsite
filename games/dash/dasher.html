@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Neon Pulse</title>
+  <title>Neon Pulse – Stable Build</title>
   <style>
     body {
       margin: 0;
       background: black;
       overflow: hidden;
-      font-family: Arial;
+      font-family: Arial, sans-serif;
     }
     canvas { display: block; }
   </style>
@@ -21,213 +21,121 @@ const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-const GRAVITY = 0.8;
-let SPEED = 6;
+const GROUND_Y = canvas.height - 60;
+const GRAVITY = 0.9;
+const SPEED = 6;
 
-let gameState = "menu"; // menu | play | dead | complete
-let currentLevel = 0;
-let mode = "cube";
+let state = "menu"; // menu | play | dead
+let frame = 0;
 
-let player = {
+const player = {
   x: 150,
-  y: 0,
-  size: 35,
+  y: GROUND_Y - 40,
+  size: 40,
   vy: 0,
-  onGround: false
+  onGround: true
 };
 
-let terrain = [];
-let obstacles = [];
-let portals = [];
-let frame = 0;
+let ground = [];
+let spikes = [];
 
 // ---------------- INPUT ----------------
 document.addEventListener("keydown", e => {
-  if (e.code === "Space") input();
+  if (e.code === "Space") handleInput();
 });
-document.addEventListener("mousedown", input);
+document.addEventListener("mousedown", handleInput);
 
-function input() {
-  if (gameState === "menu") startLevel(0);
-  else if (gameState === "dead") startLevel(currentLevel);
-  else if (gameState === "complete") startLevel(currentLevel + 1);
-  else if (gameState === "play") {
-    if (mode === "cube" && player.onGround) {
-      player.vy = -14;
-      player.onGround = false;
-    }
-    if (mode === "ufo") {
-      player.vy = -8;
-    }
+function handleInput() {
+  if (state === "menu") startGame();
+  else if (state === "dead") startGame();
+  else if (state === "play" && player.onGround) {
+    player.vy = -16;
+    player.onGround = false;
   }
 }
 
-// ---------------- LEVEL DATA ----------------
-const levels = [
-  {
-    length: 1200,
-    speed: 6,
-    script: frame => {
-      if (frame % 120 === 0) spawnGround(300);
-      if (frame % 240 === 0) spawnSpike();
-    }
-  },
-  {
-    length: 1500,
-    speed: 7,
-    script: frame => {
-      if (frame === 60) spawnUfoPortal();
-      if (frame % 100 === 0) spawnGround(250);
-      if (frame % 200 === 0) spawnSpike();
-      if (frame % 300 === 0) spawnPlatform();
-    }
-  }
-];
-
-// ---------------- START LEVEL ----------------
-function startLevel(index) {
-  if (index >= levels.length) {
-    gameState = "menu";
-    return;
-  }
-
-  currentLevel = index;
-  gameState = "play";
+// ---------------- GAME FLOW ----------------
+function startGame() {
+  state = "play";
   frame = 0;
-  mode = "cube";
-  SPEED = levels[index].speed;
 
-  terrain = [];
-  obstacles = [];
-  portals = [];
-
-  // Spawn starting ground
-  spawnGround(canvas.width * 2);
-
-  player.y = canvas.height - 40 - player.size;
+  player.y = GROUND_Y - player.size;
   player.vy = 0;
   player.onGround = true;
-}
 
-// ---------------- SPAWNERS ----------------
-function spawnGround(width) {
-  terrain.push({
-    x: canvas.width,
-    y: canvas.height - 40,
-    w: width,
-    h: 40
-  });
-}
+  ground = [{
+    x: 0,
+    y: GROUND_Y,
+    w: canvas.width * 2,
+    h: 60
+  }];
 
-function spawnPlatform() {
-  terrain.push({
-    x: canvas.width,
-    y: canvas.height - 200,
-    w: 140,
-    h: 20
-  });
-}
-
-function spawnSpike() {
-  obstacles.push({
-    x: canvas.width,
-    y: canvas.height - 80,
-    w: 40,
-    h: 40
-  });
-}
-
-function spawnUfoPortal() {
-  portals.push({
-    x: canvas.width,
-    y: canvas.height - 160,
-    w: 30,
-    h: 80,
-    mode: "ufo"
-  });
+  spikes = [];
 }
 
 // ---------------- UPDATE ----------------
 function update() {
-  if (gameState !== "play") return;
+  if (state !== "play") return;
 
   frame++;
-  levels[currentLevel].script(frame);
 
-  if (frame > levels[currentLevel].length) {
-    gameState = "complete";
-    return;
+  // Spawn spikes rhythmically
+  if (frame % 120 === 0) {
+    spikes.push({
+      x: canvas.width,
+      y: GROUND_Y - 40,
+      w: 40,
+      h: 40
+    });
   }
 
+  // Physics
   player.vy += GRAVITY;
   player.y += player.vy;
-  player.onGround = false;
 
-  terrain.forEach(t => {
-    if (
-      player.x < t.x + t.w &&
-      player.x + player.size > t.x &&
-      player.y + player.size <= t.y + 20 &&
-      player.y + player.size + player.vy >= t.y
-    ) {
-      player.y = t.y - player.size;
-      player.vy = 0;
-      player.onGround = true;
-    }
-    t.x -= SPEED;
+  // Ground collision
+  if (player.y + player.size >= GROUND_Y) {
+    player.y = GROUND_Y - player.size;
+    player.vy = 0;
+    player.onGround = true;
+  }
+
+  // Move world
+  ground.forEach(g => g.x -= SPEED);
+  spikes.forEach(s => s.x -= SPEED);
+
+  // Collision
+  spikes.forEach(s => {
+    if (hit(player, s)) state = "dead";
   });
 
-  obstacles.forEach(o => o.x -= SPEED);
-  portals.forEach(p => p.x -= SPEED);
-
-  if (player.y > canvas.height) gameState = "dead";
-
-  obstacles.forEach(o => {
-    if (hit(player, o)) gameState = "dead";
-  });
-
-  portals.forEach(p => {
-    if (hit(player, p)) mode = p.mode;
-  });
-
-  terrain = terrain.filter(t => t.x + t.w > 0);
-  obstacles = obstacles.filter(o => o.x + o.w > 0);
-  portals = portals.filter(p => p.x + p.w > 0);
+  // Cleanup
+  spikes = spikes.filter(s => s.x + s.w > 0);
 }
 
 // ---------------- DRAW ----------------
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  if (gameState === "menu") {
+  if (state === "menu") {
     drawText("NEON PULSE", 80, -40);
     drawText("CLICK TO PLAY", 36, 40);
     return;
   }
 
-  if (gameState === "complete") {
-    drawText("LEVEL COMPLETE", 60, -20);
-    drawText("CLICK FOR NEXT", 36, 40);
-    return;
-  }
-
   // Player
-  ctx.fillStyle = mode === "cube" ? "#00ffff" : "#ffff00";
+  ctx.fillStyle = "#00ffff";
   ctx.fillRect(player.x, player.y, player.size, player.size);
 
-  // Terrain
+  // Ground
   ctx.fillStyle = "#222";
-  terrain.forEach(t => ctx.fillRect(t.x, t.y, t.w, t.h));
+  ground.forEach(g => ctx.fillRect(g.x, g.y, g.w, g.h));
 
-  // Obstacles
+  // Spikes
   ctx.fillStyle = "#ff00ff";
-  obstacles.forEach(o => ctx.fillRect(o.x, o.y, o.w, o.h));
+  spikes.forEach(s => ctx.fillRect(s.x, s.y, s.w, s.h));
 
-  // Portals
-  ctx.fillStyle = "#00ff00";
-  portals.forEach(p => ctx.fillRect(p.x, p.y, p.w, p.h));
-
-  if (gameState === "dead") {
+  if (state === "dead") {
     drawText("YOU DIED", 60, -20);
     drawText("CLICK TO RETRY", 36, 40);
   }
