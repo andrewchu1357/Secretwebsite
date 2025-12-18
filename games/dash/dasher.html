@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Neon Dash: Pro Edition</title>
+    <title>Geometry Dash Advanced</title>
     <style>
-        body { margin: 0; background: #050505; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Courier New', Courier, monospace; }
-        canvas { border: 2px solid #555; background: #000; cursor: pointer; }
+        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        canvas { border: 2px solid #333; box-shadow: 0 0 50px rgba(0,255,255,0.2); }
     </style>
 </head>
 <body>
@@ -16,168 +16,155 @@ const ctx = canvas.getContext("2d");
 canvas.width = 800;
 canvas.height = 400;
 
-const STATE = { MENU: 'menu', PLAYING: 'playing', DEAD: 'dead' };
-let currentState = STATE.MENU;
+// --- Constants & Level Data ---
+const GRAVITY = 0.6;
+const STATE = { MENU: 0, PLAYING: 1, DEAD: 2 };
+let gameState = STATE.MENU;
 
-// --- Physics & Game State ---
-let player = { x: 100, y: 0, w: 30, h: 30, velY: 0, mode: 'cube', rotation: 0 };
-let obstacles = [];
-let platforms = [];
-let particles = [];
-let levelLength = 3000;
-let currentLevel = 1;
+// Level Definition: S = Spike, B = Block, P = Portal(UFO), C = Portal(Cube)
+const levelMap = [
+    "      B     B                                  ",
+    "     BBB   BBB       P        S   S   S        ",
+    "                                               ",
+    "BBBBBBBBBBBBBBBB      BBBBBB    C    BBBBBBBBBB",
+    "                    BB        BB               "
+];
 
-const levels = {
-    1: { name: "Cube Basics", speed: 5, color: "#0ff", mode: 'cube', 
-         obs: [800, 1200, 1500, 2000, 2500], platforms: [] },
-    2: { name: "UFO Flight", speed: 6, color: "#77ff00", mode: 'ufo', 
-         obs: [700, 1100, 1600, 2100, 2600], 
-         platforms: [{x: 900, y: 250, w: 200, h: 20}, {x: 1400, y: 200, w: 300, h: 20}] }
-};
+let levelObjects = [];
+let cameraX = 0;
+let player = { x: 50, y: 200, w: 30, h: 30, velY: 0, mode: 'cube', rotation: 0 };
 
-function initLevel(id) {
-    currentLevel = id;
-    const l = levels[id];
-    player.y = 300;
-    player.velY = 0;
-    player.mode = l.mode;
-    obstacles = l.obs.map(x => ({ x, w: 30, h: 35 }));
-    platforms = l.platforms.map(p => ({ ...p }));
-    particles = [];
-    levelLength = Math.max(...l.obs) + 500;
-    currentState = STATE.PLAYING;
+function buildLevel() {
+    levelObjects = [];
+    cameraX = 0;
+    player.x = 50; player.y = 200; player.velY = 0; player.mode = 'cube';
+    
+    const tileSize = 40;
+    levelMap.forEach((row, y) => {
+        [...row].forEach((char, x) => {
+            const posX = x * tileSize;
+            const posY = y * tileSize;
+            if (char === 'B') levelObjects.push({ type: 'block', x: posX, y: posY, w: tileSize, h: tileSize });
+            if (char === 'S') levelObjects.push({ type: 'spike', x: posX, y: posY, w: tileSize, h: tileSize });
+            if (char === 'P') levelObjects.push({ type: 'portal', mode: 'ufo', x: posX, y: posY, w: 20, h: 60 });
+            if (char === 'C') levelObjects.push({ type: 'portal', mode: 'cube', x: posX, y: posY, w: 20, h: 60 });
+        });
+    });
 }
 
 function update() {
-    if (currentState !== STATE.PLAYING) return;
+    if (gameState !== STATE.PLAYING) return;
 
-    // 1. Gravity & Movement
-    player.velY += 0.6; 
+    // Movement & Camera
+    player.x += 5;
+    cameraX = player.x - 150;
+
+    // Physics
+    player.velY += GRAVITY;
     player.y += player.velY;
 
-    // 2. Floor & Platform Collision
-    let onSurface = false;
-    let surfaceY = 330; // Default floor
+    let onGround = false;
 
-    // Check Platforms
-    platforms.forEach(p => {
-        p.x -= levels[currentLevel].speed;
-        if (player.x + player.w > p.x && player.x < p.x + p.w) {
-            if (player.y + player.h <= p.y + 10 && player.y + player.h + player.velY >= p.y) {
-                surfaceY = p.y;
-                onSurface = true;
+    // Collision Logic
+    levelObjects.forEach(obj => {
+        // Simple AABB Collision
+        if (player.x < obj.x + obj.w && player.x + player.w > obj.x &&
+            player.y < obj.y + obj.h && player.y + player.h > obj.y) {
+            
+            if (obj.type === 'block') {
+                // Land on top
+                if (player.velY > 0 && player.y + player.h < obj.y + 20) {
+                    player.y = obj.y - player.h;
+                    player.velY = 0;
+                    onGround = true;
+                } else { gameState = STATE.DEAD; } // Side hit
+            } else if (obj.type === 'spike') {
+                gameState = STATE.DEAD;
+            } else if (obj.type === 'portal') {
+                player.mode = obj.mode;
             }
         }
     });
 
-    if (player.y > surfaceY - player.h) {
-        player.y = surfaceY - player.h;
-        player.velY = 0;
-        if (player.mode === 'cube') player.rotation = Math.round(player.rotation / 90) * 90;
+    // Rotation
+    if (player.mode === 'cube') {
+        if (!onGround) player.rotation += 5;
+        else player.rotation = Math.round(player.rotation / 90) * 90;
     }
 
-    // 3. Obstacles & Death
-    obstacles.forEach(o => {
-        o.x -= levels[currentLevel].speed;
-        if (player.x < o.x + o.w - 5 && player.x + player.w > o.x + 5 &&
-            player.y + player.h > surfaceY - o.h && player.y < surfaceY) {
-            currentState = STATE.DEAD;
-            createParticles();
-        }
-    });
-
-    // Rotation logic for Cube
-    if (player.mode === 'cube' && player.y < surfaceY - player.h) player.rotation += 5;
-    
-    // Progress calculation (last obstacle is 100%)
-    levelProgress = Math.min(1, (levelLength - obstacles[obstacles.length-1].x) / levelLength);
-}
-
-function createParticles() {
-    for (let i = 0; i < 15; i++) {
-        particles.push({ x: player.x, y: player.y, vx: Math.random()*10-5, vy: Math.random()*10-5, life: 1 });
-    }
+    // Progress Bar (Percent)
+    const totalDist = levelMap[0].length * 40;
+    document.title = `Progress: ${Math.floor((player.x / totalDist) * 100)}%`;
 }
 
 function draw() {
-    ctx.fillStyle = "#000";
+    ctx.fillStyle = "#000814"; // Dark Space Blue
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    if (currentState === STATE.MENU) {
-        ctx.fillStyle = "white";
-        ctx.font = "30px Arial";
-        ctx.fillText("SELECT MODE", 300, 100);
-        ctx.strokeStyle = levels[1].color; ctx.strokeRect(150, 150, 200, 100);
-        ctx.fillText("CUBE", 210, 210);
-        ctx.strokeStyle = levels[2].color; ctx.strokeRect(450, 150, 200, 100);
-        ctx.fillText("UFO", 515, 210);
-        return;
-    }
+    ctx.save();
+    ctx.translate(-cameraX, 0);
 
-    // Progress Bar
-    let prog = (levelLength - obstacles[obstacles.length-1].x) / levelLength;
-    ctx.fillStyle = "#333";
-    ctx.fillRect(200, 20, 400, 10);
-    ctx.fillStyle = levels[currentLevel].color;
-    ctx.fillRect(200, 20, 400 * Math.max(0, Math.min(1, prog)), 10);
-
-    // Ground
-    ctx.strokeStyle = "#444";
-    ctx.beginPath(); ctx.moveTo(0, 330); ctx.lineTo(canvas.width, 330); ctx.stroke();
-
-    // Platforms
-    ctx.fillStyle = "#444";
-    platforms.forEach(p => {
-        ctx.fillRect(p.x, p.y, p.w, p.h);
-        ctx.strokeStyle = "white"; ctx.strokeRect(p.x, p.y, p.w, p.h);
-    });
-
-    // Player
-    if (currentState === STATE.PLAYING) {
-        ctx.save();
-        ctx.translate(player.x + 15, player.y + 15);
-        if (player.mode === 'cube') ctx.rotate(player.rotation * Math.PI / 180);
-        ctx.fillStyle = levels[currentLevel].color;
-        if (player.mode === 'ufo') {
-            ctx.beginPath(); ctx.ellipse(0, 0, 20, 10, 0, 0, Math.PI * 2); ctx.fill(); // UFO Shape
-        } else {
-            ctx.fillRect(-15, -15, 30, 30);
+    // Draw Objects
+    levelObjects.forEach(obj => {
+        if (obj.type === 'block') {
+            ctx.fillStyle = "#111";
+            ctx.strokeStyle = "#0ff";
+            ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
+            ctx.strokeRect(obj.x, obj.y, obj.w, obj.h);
+        } else if (obj.type === 'spike') {
+            ctx.fillStyle = "white";
+            ctx.beginPath();
+            ctx.moveTo(obj.x, obj.y + obj.h);
+            ctx.lineTo(obj.x + obj.w / 2, obj.y);
+            ctx.lineTo(obj.x + obj.w, obj.y + obj.h);
+            ctx.fill();
+        } else if (obj.type === 'portal') {
+            ctx.fillStyle = obj.mode === 'ufo' ? "#f0f" : "#0f0";
+            ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
         }
-        ctx.restore();
-    }
-
-    // Obstacles
-    ctx.fillStyle = "white";
-    obstacles.forEach(o => {
-        ctx.beginPath(); ctx.moveTo(o.x, 330); ctx.lineTo(o.x+15, 300); ctx.lineTo(o.x+30, 330); ctx.fill();
     });
 
-    // Death Text
-    if (currentState === STATE.DEAD) {
-        ctx.fillStyle = "white";
-        ctx.fillText("CRASHED - SPACE TO RETRY", 220, 200);
+    // Draw Player
+    ctx.save();
+    ctx.translate(player.x + player.w/2, player.y + player.h/2);
+    if (player.mode === 'cube') ctx.rotate(player.rotation * Math.PI / 180);
+    ctx.fillStyle = "#0ff";
+    ctx.shadowBlur = 10; ctx.shadowColor = "#0ff";
+    if (player.mode === 'ufo') {
+        ctx.beginPath(); ctx.ellipse(0, 0, 20, 10, 0, 0, Math.PI * 2); ctx.fill();
+    } else {
+        ctx.fillRect(-15, -15, 30, 30);
+    }
+    ctx.restore();
+
+    ctx.restore();
+
+    // UI Overlays
+    if (gameState === STATE.MENU) {
+        ctx.fillStyle = "white"; ctx.font = "30px Arial";
+        ctx.fillText("GEOMETRY CLONE", 270, 180);
+        ctx.font = "15px Arial"; ctx.fillText("CLICK TO START", 340, 210);
+    } else if (gameState === STATE.DEAD) {
+        ctx.fillStyle = "rgba(255,0,0,0.3)"; ctx.fillRect(0,0,800,400);
+        ctx.fillStyle = "white"; ctx.fillText("CRASHED! CLICK TO RETRY", 240, 200);
     }
 }
 
 function handleInput() {
-    if (currentState === STATE.MENU) return;
-    if (currentState === STATE.DEAD) { initLevel(currentLevel); return; }
-
-    if (player.mode === 'cube') {
-        if (player.y >= 290) player.velY = -12; // Basic Jump
-    } else {
-        player.velY = -8; // UFO Flap (always works)
+    if (gameState === STATE.MENU) { buildLevel(); gameState = STATE.PLAYING; }
+    else if (gameState === STATE.DEAD) { buildLevel(); gameState = STATE.PLAYING; }
+    else {
+        if (player.mode === 'cube') {
+            // Check if on ground/block logic simplified for demo
+            player.velY = -11;
+        } else {
+            player.velY = -8; // UFO Flap
+        }
     }
 }
 
+window.addEventListener("mousedown", handleInput);
 window.addEventListener("keydown", e => { if(e.code === "Space") handleInput(); });
-canvas.addEventListener("mousedown", e => {
-    if (currentState === STATE.MENU) {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        if (x < 400) initLevel(1); else initLevel(2);
-    } else { handleInput(); }
-});
 
 function loop() { update(); draw(); requestAnimationFrame(loop); }
 loop();
