@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Geometry Dash Clone</title>
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    canvas {
+      display: block;
+      margin: 10px auto;
+      background: #1e1e1e;
+    }
+    #menu {
+      margin-top: 30px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    input[type="color"] {
+      width: 50px;
+      height: 30px;
+      border: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<div id="menu">
+  <h1>Geometry Dash Clone</h1>
+  <p>Choose your color:</p>
+  <input type="color" id="colorPicker" value="#00ffff">
+  <br><br>
+  <button onclick="startGame()">Start Game</button>
+</div>
+
+<canvas id="game" width="800" height="400" style="display:none;">

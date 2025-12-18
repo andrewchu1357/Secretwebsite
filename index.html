@@ -9,80 +9,12 @@
   
 </head>
 <body>
-  <h2>Login</h2>
-  <form id="loginForm">
-    <input type="email" id="email" placeholder="Email" required />
-    <input type="password" id="password" placeholder="Password" required />
-    <button type="submit">Login</button>
-  </form>
+ <h1>Welcome! Play some games?</h1>
 
-  <h1>Welcome...</h1>
-  <p>Login is down. New Users: Everything is free here. Try to find our secret pages...</p>
-<a href="https://discord.gg/MPFax5JgDg"
-    class="btn"
-    style="display:inline-block;margin-top:12px;padding:11px 14px;background:#3c5fdd;color:#fff;border-radius:6px;text-decoration:none;">
-    Check out our discord server, Webland!
-</a>
-
-
-  <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-      import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
-      import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-
-      const firebaseConfig = {
-        apiKey: "AIzaSyDUGgIUEHJiYfz5s-25OaJh-ME8jtxDZx4",
-        authDomain: "secretweb-71fcc.firebaseapp.com",
-        projectId: "secretweb-71fcc",
-        storageBucket: "secretweb-71fcc.firebasestorage.app",
-        messagingSenderId: "767394475176",
-        appId: "1:767394475176:web:ff0ef5216bd8e61252669d",
-        measurementId: "G-VJRSGWVXY5"
-      };
-
-      const app = initializeApp(firebaseConfig);
-      try { getAnalytics(app); } catch (e) { /* analytics may fail in some dev setups */ }
-      const auth = getAuth(app);
-
-      document.getElementById("loginForm").addEventListener("submit", (e) => {
-        e.preventDefault();
-        const email = document.getElementById("email").value;
-        const password = document.getElementById("password").value;
-
-        signInWithEmailAndPassword(auth, email, password)
-          .then((userCredential) => {
-            console.log("Login OK, redirecting to dashboard...");
-            // Redirect to the dashboard inside Secretwebsite/public
-            window.location.href = "Secretwebsite/public/dashboard.html";
-          })
-          .catch((error) => {
-            console.error("Login failed:", error);
-            alert("Login failed: " + error.message);
-          });
-      });
-    </script>
-<br>
-<p3 class="notification">NEW DISPLAY!!! Check out the buttons below for Christmas Themed pages!</p3>
-<br>
-<a href="Animations/Xmas-tree/rotating-chrismas-mas-tree.html"
-   class="btn"
-   style="display:inline-block;margin-top:12px;padding:10px 16px;background:#ffffff;color:#000;border-radius:6px;text-decoration:none;">
-  Open Christmas Tree
-</a>
-<a href="Animations/Xmas-fox/fox.html"
-   class="btn"
-   style="display:inline-block;margin-top:12px;padding:10px 16px;background:#ffffff;color:#000;border-radius:6px;text-decoration:none;">
-  Open Christmas Fox
-</a>
-<a href="Animations/Countdown/countdown.html"
-   class="btn"
-   style="display:inline-block;margin-top:12px;padding:10px 16px;background:#ffffff;color:#000;border-radius:6px;text-decoration:none;">
-  Open Christmas Countdown!!!
-</a>
-<br>
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5539386725883908"
      crossorigin="anonymous"></script>
 
+     
   
 </body>
 
