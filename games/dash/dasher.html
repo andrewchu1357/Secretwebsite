@@ -1,173 +1,23 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Neon Pulse – Stable Build</title>
+  <meta charset="UTF-8">
+  <title>Neon Pulse</title>
   <style>
     body {
       margin: 0;
       background: black;
       overflow: hidden;
-      font-family: Arial, sans-serif;
     }
-    canvas { display: block; }
+    canvas {
+      display: block;
+    }
   </style>
 </head>
 <body>
+
 <canvas id="game"></canvas>
 
-<script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
-const GROUND_Y = canvas.height - 60;
-const GRAVITY = 0.9;
-const SPEED = 6;
-
-let state = "menu"; // menu | play | dead
-let frame = 0;
-
-const player = {
-  x: 150,
-  y: GROUND_Y - 40,
-  size: 40,
-  vy: 0,
-  onGround: true
-};
-
-let ground = [];
-let spikes = [];
-
-// ---------------- INPUT ----------------
-document.addEventListener("keydown", e => {
-  if (e.code === "Space") handleInput();
-});
-document.addEventListener("mousedown", handleInput);
-
-function handleInput() {
-  if (state === "menu") startGame();
-  else if (state === "dead") startGame();
-  else if (state === "play" && player.onGround) {
-    player.vy = -16;
-    player.onGround = false;
-  }
-}
-
-// ---------------- GAME FLOW ----------------
-function startGame() {
-  state = "play";
-  frame = 0;
-
-  player.y = GROUND_Y - player.size;
-  player.vy = 0;
-  player.onGround = true;
-
-  ground = [{
-    x: 0,
-    y: GROUND_Y,
-    w: canvas.width * 2,
-    h: 60
-  }];
-
-  spikes = [];
-}
-
-// ---------------- UPDATE ----------------
-function update() {
-  if (state !== "play") return;
-
-  frame++;
-
-  // Spawn spikes rhythmically
-  if (frame % 120 === 0) {
-    spikes.push({
-      x: canvas.width,
-      y: GROUND_Y - 40,
-      w: 40,
-      h: 40
-    });
-  }
-
-  // Physics
-  player.vy += GRAVITY;
-  player.y += player.vy;
-
-  // Ground collision
-  if (player.y + player.size >= GROUND_Y) {
-    player.y = GROUND_Y - player.size;
-    player.vy = 0;
-    player.onGround = true;
-  }
-
-  // Move world
-  ground.forEach(g => g.x -= SPEED);
-  spikes.forEach(s => s.x -= SPEED);
-
-  // Collision
-  spikes.forEach(s => {
-    if (hit(player, s)) state = "dead";
-  });
-
-  // Cleanup
-  spikes = spikes.filter(s => s.x + s.w > 0);
-}
-
-// ---------------- DRAW ----------------
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  if (state === "menu") {
-    drawText("NEON PULSE", 80, -40);
-    drawText("CLICK TO PLAY", 36, 40);
-    return;
-  }
-
-  // Player
-  ctx.fillStyle = "#00ffff";
-  ctx.fillRect(player.x, player.y, player.size, player.size);
-
-  // Ground
-  ctx.fillStyle = "#222";
-  ground.forEach(g => ctx.fillRect(g.x, g.y, g.w, g.h));
-
-  // Spikes
-  ctx.fillStyle = "#ff00ff";
-  spikes.forEach(s => ctx.fillRect(s.x, s.y, s.w, s.h));
-
-  if (state === "dead") {
-    drawText("YOU DIED", 60, -20);
-    drawText("CLICK TO RETRY", 36, 40);
-  }
-}
-
-function drawText(text, size, offsetY) {
-  ctx.fillStyle = "#00ffff";
-  ctx.font = `${size}px Arial`;
-  ctx.fillText(
-    text,
-    canvas.width / 2 - ctx.measureText(text).width / 2,
-    canvas.height / 2 + offsetY
-  );
-}
-
-// ---------------- UTILS ----------------
-function hit(a, b) {
-  return (
-    a.x < b.x + b.w &&
-    a.x + a.size > b.x &&
-    a.y < b.y + b.h &&
-    a.y + a.size > b.y
-  );
-}
-
-// ---------------- LOOP ----------------
-function loop() {
-  update();
-  draw();
-  requestAnimationFrame(loop);
-}
-loop();
-</script>
+<script src="game.js"></script>
 </body>
 </html>
