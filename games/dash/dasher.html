@@ -1,132 +1,194 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Neon Dash JS</title>
+    <title>Neon Dash: Level Select</title>
     <style>
-        body { margin: 0; background: #111; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; color: white; font-family: sans-serif; }
-        canvas { border: 2px solid #0ff; box-shadow: 0 0 20px #0ff; background: #000; }
-        .info { position: absolute; top: 10px; text-align: center; width: 100%; }
+        body { margin: 0; background: #0a0a0a; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        canvas { border: 2px solid #333; box-shadow: 0 0 30px rgba(0,0,0,0.5); background: #000; cursor: pointer; }
+        #ui-overlay { position: absolute; color: white; text-align: center; pointer-events: none; }
     </style>
 </head>
 <body>
-    <div class="info">Press <b>SPACE</b> or <b>TAP</b> to Jump</div>
     <canvas id="gameCanvas"></canvas>
 
 <script>
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-
 canvas.width = 800;
 canvas.height = 400;
 
-// --- Game Constants ---
-const GRAVITY = 0.6;
-const JUMP_FORCE = -10;
-const GROUND_Y = 330;
-let scrollSpeed = 5;
+// --- Game States ---
+const STATE = { MENU: 'menu', PLAYING: 'playing', DEAD: 'dead' };
+let currentState = STATE.MENU;
+let currentLevel = 1;
 
-// --- Game State ---
-let player = {
-    x: 100, y: GROUND_Y - 30,
-    w: 30, h: 30,
-    velY: 0,
-    isJumping: false
+// --- Constants ---
+const GRAVITY = 0.6;
+const GROUND_Y = 330;
+let player = { x: 100, y: 0, w: 30, h: 30, velY: 0, isJumping: false, rotation: 0 };
+let obstacles = [];
+let particles = [];
+
+// --- Level Data ---
+const levels = {
+    1: { name: "Stereo Madness", speed: 5, color: "#0ff", spacing: [600, 1000, 1400, 1800, 2200] },
+    2: { name: "Back on Track", speed: 7, color: "#f0f", spacing: [500, 800, 1100, 1300, 1500, 1800] }
 };
 
-let obstacles = [ {x: 600}, {x: 1000}, {x: 1400}, {x: 1900} ];
-let frameCount = 0;
-
-function reset() {
+function initLevel(levelId) {
+    currentLevel = levelId;
+    const data = levels[levelId];
     player.y = GROUND_Y - 30;
     player.velY = 0;
-    player.isJumping = false;
-    obstacles = [ {x: 600}, {x: 1000}, {x: 1400}, {x: 1900} ];
-    frameCount = 0;
+    player.rotation = 0;
+    obstacles = data.spacing.map(x => ({ x, w: 30, h: 35 }));
+    particles = [];
+    currentState = STATE.PLAYING;
+}
+
+function createDeathParticles() {
+    for (let i = 0; i < 15; i++) {
+        particles.push({
+            x: player.x + 15,
+            y: player.y + 15,
+            vx: (Math.random() - 0.5) * 10,
+            vy: (Math.random() - 0.5) * 10,
+            life: 1.0,
+            color: levels[currentLevel].color
+        });
+    }
 }
 
 function update() {
-    // Player Physics
-    player.velY += GRAVITY;
-    player.y += player.velY;
+    if (currentState === STATE.PLAYING) {
+        player.velY += GRAVITY;
+        player.y += player.velY;
 
-    if (player.y > GROUND_Y - player.h) {
-        player.y = GROUND_Y - player.h;
-        player.velY = 0;
-        player.isJumping = false;
-    }
-
-    // Move Obstacles
-    obstacles.forEach(obs => {
-        obs.x -= scrollSpeed;
-        
-        // Collision Detection (Hitbox)
-        if (player.x < obs.x + 25 && player.x + player.w > obs.x + 5 &&
-            player.y + player.h > GROUND_Y - 35) {
-            reset(); // Instant Feedback Loop
+        if (player.y > GROUND_Y - player.h) {
+            player.y = GROUND_Y - player.h;
+            player.velY = 0;
+            player.isJumping = false;
+            player.rotation = Math.round(player.rotation / 90) * 90; // Snap rotation
+        } else {
+            player.rotation += 5; // Rotate in air
         }
-    });
 
-    // Loop obstacles for infinite play (optional)
-    if(obstacles[0].x < -50) {
-        obstacles.shift();
-        obstacles.push({x: obstacles[obstacles.length-1].x + 400 + Math.random() * 200});
+        obstacles.forEach(obs => {
+            obs.x -= levels[currentLevel].speed;
+            // Collision
+            if (player.x < obs.x + obs.w - 5 && player.x + player.w > obs.x + 5 &&
+                player.y + player.h > GROUND_Y - obs.h) {
+                createDeathParticles();
+                currentState = STATE.DEAD;
+            }
+        });
     }
+
+    // Update Particles
+    particles.forEach((p, i) => {
+        p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+        if (p.life <= 0) particles.splice(i, 1);
+    });
 }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+    
     // Draw Ground
-    ctx.strokeStyle = "#fff";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, GROUND_Y);
-    ctx.lineTo(canvas.width, GROUND_Y);
-    ctx.stroke();
+    ctx.strokeStyle = "#444";
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(0, GROUND_Y); ctx.lineTo(canvas.width, GROUND_Y); ctx.stroke();
 
-    // Draw Player (Neon Cube)
-    ctx.fillStyle = "#0ff";
-    ctx.shadowBlur = 15;
-    ctx.shadowColor = "#0ff";
-    ctx.fillRect(player.x, player.y, player.w, player.h);
-    ctx.strokeStyle = "white";
-    ctx.strokeRect(player.x, player.y, player.w, player.h);
+    if (currentState === STATE.MENU) {
+        drawMenu();
+    } else {
+        // Draw Player
+        if (currentState !== STATE.DEAD) {
+            ctx.save();
+            ctx.translate(player.x + 15, player.y + 15);
+            ctx.rotate(player.rotation * Math.PI / 180);
+            ctx.fillStyle = levels[currentLevel].color;
+            ctx.fillRect(-15, -15, 30, 30);
+            ctx.strokeStyle = "white";
+            ctx.strokeRect(-15, -15, 30, 30);
+            ctx.restore();
+        }
 
-    // Draw Obstacles (Spikes)
-    ctx.fillStyle = "#f0f";
-    ctx.shadowColor = "#f0f";
-    obstacles.forEach(obs => {
-        ctx.beginPath();
-        ctx.moveTo(obs.x, GROUND_Y);
-        ctx.lineTo(obs.x + 15, GROUND_Y - 35);
-        ctx.lineTo(obs.x + 30, GROUND_Y);
-        ctx.fill();
-    });
+        // Draw Obstacles
+        ctx.fillStyle = "#fff";
+        obstacles.forEach(obs => {
+            ctx.beginPath();
+            ctx.moveTo(obs.x, GROUND_Y);
+            ctx.lineTo(obs.x + obs.w/2, GROUND_Y - obs.h);
+            ctx.lineTo(obs.x + obs.w, GROUND_Y);
+            ctx.fill();
+        });
+
+        // Draw Death Particles
+        particles.forEach(p => {
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x, p.y, 5, 5);
+        });
+        ctx.globalAlpha = 1;
+
+        if (currentState === STATE.DEAD) {
+            ctx.fillStyle = "rgba(0,0,0,0.6)";
+            ctx.fillRect(0,0,canvas.width, canvas.height);
+            ctx.fillStyle = "white";
+            ctx.font = "30px Arial";
+            ctx.fillText("CRASHED!", canvas.width/2 - 70, 180);
+            ctx.font = "20px Arial";
+            ctx.fillText("Press SPACE to Retry or M for Menu", canvas.width/2 - 150, 230);
+        }
+    }
 }
 
-function gameLoop() {
-    update();
-    draw();
-    requestAnimationFrame(gameLoop);
+function drawMenu() {
+    ctx.fillStyle = "white";
+    ctx.font = "40px Arial";
+    ctx.fillText("SELECT LEVEL", canvas.width/2 - 130, 100);
+    
+    // Level 1 Box
+    ctx.strokeStyle = levels[1].color;
+    ctx.strokeRect(150, 180, 200, 100);
+    ctx.font = "20px Arial";
+    ctx.fillText("1: Easy", 210, 230);
+
+    // Level 2 Box
+    ctx.strokeStyle = levels[2].color;
+    ctx.strokeRect(450, 180, 200, 100);
+    ctx.fillText("2: Hard", 510, 230);
 }
 
-// Input Handling
+// Input Logic
 window.addEventListener("keydown", (e) => {
-    if (e.code === "Space" && !player.isJumping) {
-        player.velY = JUMP_FORCE;
+    if (currentState === STATE.PLAYING && e.code === "Space" && !player.isJumping) {
+        player.velY = -12;
+        player.isJumping = true;
+    } else if (currentState === STATE.DEAD) {
+        if (e.code === "Space") initLevel(currentLevel);
+        if (e.key === "m") currentState = STATE.MENU;
+    }
+});
+
+canvas.addEventListener("mousedown", (e) => {
+    if (currentState === STATE.MENU) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        if (y > 180 && y < 280) {
+            if (x > 150 && x < 350) initLevel(1);
+            if (x > 450 && x < 650) initLevel(2);
+        }
+    } else if (currentState === STATE.PLAYING && !player.isJumping) {
+        player.velY = -12;
         player.isJumping = true;
     }
 });
 
-// Mobile Touch Support
-window.addEventListener("touchstart", () => {
-    if (!player.isJumping) {
-        player.velY = JUMP_FORCE;
-        player.isJumping = true;
-    }
-});
-
-gameLoop();
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
 </script>
 </body>
 </html>
