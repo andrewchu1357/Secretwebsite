@@ -1,45 +1,130 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Geometry Dash Clone</title>
+  <title>Neon Pulse</title>
   <style>
     body {
       margin: 0;
-      background: #111;
-      color: white;
-      font-family: Arial, sans-serif;
-      text-align: center;
+      background: black;
+      overflow: hidden;
     }
     canvas {
       display: block;
-      margin: 10px auto;
-      background: #1e1e1e;
-    }
-    #menu {
-      margin-top: 30px;
-    }
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-    input[type="color"] {
-      width: 50px;
-      height: 30px;
-      border: none;
-      cursor: pointer;
     }
   </style>
 </head>
 <body>
+<canvas id="game"></canvas>
 
-<div id="menu">
-  <h1>Geometry Dash Clone</h1>
-  <p>Choose your color:</p>
-  <input type="color" id="colorPicker" value="#00ffff">
-  <br><br>
-  <button onclick="startGame()">Start Game</button>
-</div>
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-<canvas id="game" width="800" height="400" style="display:none;">
+let gravity = 0.8;
+let jumpForce = -14;
+let speed = 6;
+
+let player = {
+  x: 150,
+  y: canvas.height - 120,
+  size: 40,
+  vy: 0,
+  onGround: false
+};
+
+let obstacles = [];
+let frame = 0;
+let alive = true;
+
+function spawnObstacle() {
+  obstacles.push({
+    x: canvas.width,
+    y: canvas.height - 80,
+    w: 40,
+    h: 40
+  });
+}
+
+function reset() {
+  obstacles = [];
+  player.y = canvas.height - 120;
+  player.vy = 0;
+  alive = true;
+  frame = 0;
+}
+
+document.addEventListener("keydown", e => {
+  if (e.code === "Space" && player.onGround && alive) {
+    player.vy = jumpForce;
+    player.onGround = false;
+  }
+  if (!alive) reset();
+});
+
+function update() {
+  if (!alive) return;
+
+  frame++;
+  if (frame % 90 === 0) spawnObstacle();
+
+  player.vy += gravity;
+  player.y += player.vy;
+
+  if (player.y + player.size >= canvas.height - 40) {
+    player.y = canvas.height - 40 - player.size;
+    player.vy = 0;
+    player.onGround = true;
+  }
+
+  obstacles.forEach(o => o.x -= speed);
+
+  obstacles = obstacles.filter(o => o.x + o.w > 0);
+
+  for (let o of obstacles) {
+    if (
+      player.x < o.x + o.w &&
+      player.x + player.size > o.x &&
+      player.y < o.y + o.h &&
+      player.y + player.size > o.y
+    ) {
+      alive = false;
+    }
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Player
+  ctx.fillStyle = "#00ffff";
+  ctx.fillRect(player.x, player.y, player.size, player.size);
+
+  // Ground
+  ctx.fillStyle = "#222";
+  ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+
+  // Obstacles
+  ctx.fillStyle = "#ff00ff";
+  obstacles.forEach(o =>
+    ctx.fillRect(o.x, o.y, o.w, o.h)
+  );
+
+  if (!alive) {
+    ctx.fillStyle = "white";
+    ctx.font = "40px Arial";
+    ctx.fillText("CLICK OR SPACE TO RESTART", canvas.width / 2 - 260, canvas.height / 2);
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>
