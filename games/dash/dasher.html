@@ -9,9 +9,7 @@
       overflow: hidden;
       font-family: Arial;
     }
-    canvas {
-      display: block;
-    }
+    canvas { display: block; }
   </style>
 </head>
 <body>
@@ -24,82 +22,108 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 const GRAVITY = 0.8;
-const SPEED = 6;
+let SPEED = 6;
 
-let gameState = "menu"; // menu | play | dead
-let mode = "cube"; // cube | ufo
+let gameState = "menu"; // menu | play | dead | complete
+let currentLevel = 0;
+let mode = "cube";
 
 let player = {
   x: 150,
-  y: canvas.height - 120,
+  y: 0,
   size: 35,
   vy: 0,
   onGround: false
 };
 
+let terrain = [];
 let obstacles = [];
 let portals = [];
-let terrain = [];
 let frame = 0;
 
-// ------------------ INPUT ------------------
+// ---------------- INPUT ----------------
 document.addEventListener("keydown", e => {
-  if (e.code === "Space") handleInput();
+  if (e.code === "Space") input();
 });
-document.addEventListener("mousedown", handleInput);
+document.addEventListener("mousedown", input);
 
-function handleInput() {
-  if (gameState === "menu") {
-    startGame();
-    return;
-  }
-
-  if (gameState === "dead") {
-    startGame();
-    return;
-  }
-
-  if (mode === "cube" && player.onGround) {
-    player.vy = -14;
-    player.onGround = false;
-  }
-
-  if (mode === "ufo") {
-    player.vy = -8;
+function input() {
+  if (gameState === "menu") startLevel(0);
+  else if (gameState === "dead") startLevel(currentLevel);
+  else if (gameState === "complete") startLevel(currentLevel + 1);
+  else if (gameState === "play") {
+    if (mode === "cube" && player.onGround) {
+      player.vy = -14;
+      player.onGround = false;
+    }
+    if (mode === "ufo") {
+      player.vy = -8;
+    }
   }
 }
 
-// ------------------ GAME FLOW ------------------
-function startGame() {
+// ---------------- LEVEL DATA ----------------
+const levels = [
+  {
+    length: 1200,
+    speed: 6,
+    script: frame => {
+      if (frame % 120 === 0) spawnGround(300);
+      if (frame % 240 === 0) spawnSpike();
+    }
+  },
+  {
+    length: 1500,
+    speed: 7,
+    script: frame => {
+      if (frame === 60) spawnUfoPortal();
+      if (frame % 100 === 0) spawnGround(250);
+      if (frame % 200 === 0) spawnSpike();
+      if (frame % 300 === 0) spawnPlatform();
+    }
+  }
+];
+
+// ---------------- START LEVEL ----------------
+function startLevel(index) {
+  if (index >= levels.length) {
+    gameState = "menu";
+    return;
+  }
+
+  currentLevel = index;
   gameState = "play";
+  frame = 0;
   mode = "cube";
-  player.y = canvas.height - 120;
-  player.vy = 0;
+  SPEED = levels[index].speed;
+
+  terrain = [];
   obstacles = [];
   portals = [];
-  terrain = [];
-  frame = 0;
+
+  // Spawn starting ground
+  spawnGround(canvas.width * 2);
+
+  player.y = canvas.height - 40 - player.size;
+  player.vy = 0;
+  player.onGround = true;
 }
 
-// ------------------ SPAWNING ------------------
-function spawnGround() {
+// ---------------- SPAWNERS ----------------
+function spawnGround(width) {
   terrain.push({
     x: canvas.width,
     y: canvas.height - 40,
-    w: 300,
+    w: width,
     h: 40
   });
-}
-
-function spawnPit() {
-  // skip ground = pit
 }
 
 function spawnPlatform() {
   terrain.push({
     x: canvas.width,
     y: canvas.height - 200,
-    w: 150,
+    w: 140,
     h: 20
   });
 }
@@ -116,26 +140,25 @@ function spawnSpike() {
 function spawnUfoPortal() {
   portals.push({
     x: canvas.width,
-    y: canvas.height - 150,
+    y: canvas.height - 160,
     w: 30,
-    h: 60,
+    h: 80,
     mode: "ufo"
   });
 }
 
-// ------------------ UPDATE ------------------
+// ---------------- UPDATE ----------------
 function update() {
   if (gameState !== "play") return;
 
   frame++;
+  levels[currentLevel].script(frame);
 
-  // Rhythm-based spawning
-  if (frame % 120 === 0) spawnGround();
-  if (frame % 240 === 0) spawnSpike();
-  if (frame % 360 === 0) spawnPlatform();
-  if (frame === 600) spawnUfoPortal();
+  if (frame > levels[currentLevel].length) {
+    gameState = "complete";
+    return;
+  }
 
-  // Physics
   player.vy += GRAVITY;
   player.y += player.vy;
   player.onGround = false;
@@ -144,7 +167,7 @@ function update() {
     if (
       player.x < t.x + t.w &&
       player.x + player.size > t.x &&
-      player.y + player.size < t.y + 20 &&
+      player.y + player.size <= t.y + 20 &&
       player.y + player.size + player.vy >= t.y
     ) {
       player.y = t.y - player.size;
@@ -157,10 +180,8 @@ function update() {
   obstacles.forEach(o => o.x -= SPEED);
   portals.forEach(p => p.x -= SPEED);
 
-  // Ground fail
   if (player.y > canvas.height) gameState = "dead";
 
-  // Collision
   obstacles.forEach(o => {
     if (hit(player, o)) gameState = "dead";
   });
@@ -169,23 +190,24 @@ function update() {
     if (hit(player, p)) mode = p.mode;
   });
 
-  // Cleanup
   terrain = terrain.filter(t => t.x + t.w > 0);
   obstacles = obstacles.filter(o => o.x + o.w > 0);
   portals = portals.filter(p => p.x + p.w > 0);
 }
 
-// ------------------ DRAW ------------------
+// ---------------- DRAW ----------------
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (gameState === "menu") {
-    ctx.fillStyle = "#00ffff";
-    ctx.font = "80px Arial";
-    ctx.fillText("NEON PULSE", canvas.width / 2 - 240, canvas.height / 2 - 50);
+    drawText("NEON PULSE", 80, -40);
+    drawText("CLICK TO PLAY", 36, 40);
+    return;
+  }
 
-    ctx.font = "40px Arial";
-    ctx.fillText("CLICK TO PLAY", canvas.width / 2 - 130, canvas.height / 2 + 40);
+  if (gameState === "complete") {
+    drawText("LEVEL COMPLETE", 60, -20);
+    drawText("CLICK FOR NEXT", 36, 40);
     return;
   }
 
@@ -206,13 +228,22 @@ function draw() {
   portals.forEach(p => ctx.fillRect(p.x, p.y, p.w, p.h));
 
   if (gameState === "dead") {
-    ctx.fillStyle = "white";
-    ctx.font = "40px Arial";
-    ctx.fillText("RESTART", canvas.width / 2 - 80, canvas.height / 2);
+    drawText("YOU DIED", 60, -20);
+    drawText("CLICK TO RETRY", 36, 40);
   }
 }
 
-// ------------------ UTILS ------------------
+function drawText(text, size, offsetY) {
+  ctx.fillStyle = "#00ffff";
+  ctx.font = `${size}px Arial`;
+  ctx.fillText(
+    text,
+    canvas.width / 2 - ctx.measureText(text).width / 2,
+    canvas.height / 2 + offsetY
+  );
+}
+
+// ---------------- UTILS ----------------
 function hit(a, b) {
   return (
     a.x < b.x + b.w &&
@@ -222,7 +253,7 @@ function hit(a, b) {
   );
 }
 
-// ------------------ LOOP ------------------
+// ---------------- LOOP ----------------
 function loop() {
   update();
   draw();
