@@ -7,6 +7,7 @@
       margin: 0;
       background: black;
       overflow: hidden;
+      font-family: Arial;
     }
     canvas {
       display: block;
@@ -22,23 +23,88 @@ const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-let gravity = 0.8;
-let jumpForce = -14;
-let speed = 6;
+const GRAVITY = 0.8;
+const SPEED = 6;
+
+let gameState = "menu"; // menu | play | dead
+let mode = "cube"; // cube | ufo
 
 let player = {
   x: 150,
   y: canvas.height - 120,
-  size: 40,
+  size: 35,
   vy: 0,
   onGround: false
 };
 
 let obstacles = [];
+let portals = [];
+let terrain = [];
 let frame = 0;
-let alive = true;
 
-function spawnObstacle() {
+// ------------------ INPUT ------------------
+document.addEventListener("keydown", e => {
+  if (e.code === "Space") handleInput();
+});
+document.addEventListener("mousedown", handleInput);
+
+function handleInput() {
+  if (gameState === "menu") {
+    startGame();
+    return;
+  }
+
+  if (gameState === "dead") {
+    startGame();
+    return;
+  }
+
+  if (mode === "cube" && player.onGround) {
+    player.vy = -14;
+    player.onGround = false;
+  }
+
+  if (mode === "ufo") {
+    player.vy = -8;
+  }
+}
+
+// ------------------ GAME FLOW ------------------
+function startGame() {
+  gameState = "play";
+  mode = "cube";
+  player.y = canvas.height - 120;
+  player.vy = 0;
+  obstacles = [];
+  portals = [];
+  terrain = [];
+  frame = 0;
+}
+
+// ------------------ SPAWNING ------------------
+function spawnGround() {
+  terrain.push({
+    x: canvas.width,
+    y: canvas.height - 40,
+    w: 300,
+    h: 40
+  });
+}
+
+function spawnPit() {
+  // skip ground = pit
+}
+
+function spawnPlatform() {
+  terrain.push({
+    x: canvas.width,
+    y: canvas.height - 200,
+    w: 150,
+    h: 20
+  });
+}
+
+function spawnSpike() {
   obstacles.push({
     x: canvas.width,
     y: canvas.height - 80,
@@ -47,83 +113,121 @@ function spawnObstacle() {
   });
 }
 
-function reset() {
-  obstacles = [];
-  player.y = canvas.height - 120;
-  player.vy = 0;
-  alive = true;
-  frame = 0;
+function spawnUfoPortal() {
+  portals.push({
+    x: canvas.width,
+    y: canvas.height - 150,
+    w: 30,
+    h: 60,
+    mode: "ufo"
+  });
 }
 
-document.addEventListener("keydown", e => {
-  if (e.code === "Space" && player.onGround && alive) {
-    player.vy = jumpForce;
-    player.onGround = false;
-  }
-  if (!alive) reset();
-});
-
+// ------------------ UPDATE ------------------
 function update() {
-  if (!alive) return;
+  if (gameState !== "play") return;
 
   frame++;
-  if (frame % 90 === 0) spawnObstacle();
 
-  player.vy += gravity;
+  // Rhythm-based spawning
+  if (frame % 120 === 0) spawnGround();
+  if (frame % 240 === 0) spawnSpike();
+  if (frame % 360 === 0) spawnPlatform();
+  if (frame === 600) spawnUfoPortal();
+
+  // Physics
+  player.vy += GRAVITY;
   player.y += player.vy;
+  player.onGround = false;
 
-  if (player.y + player.size >= canvas.height - 40) {
-    player.y = canvas.height - 40 - player.size;
-    player.vy = 0;
-    player.onGround = true;
-  }
-
-  obstacles.forEach(o => o.x -= speed);
-
-  obstacles = obstacles.filter(o => o.x + o.w > 0);
-
-  for (let o of obstacles) {
+  terrain.forEach(t => {
     if (
-      player.x < o.x + o.w &&
-      player.x + player.size > o.x &&
-      player.y < o.y + o.h &&
-      player.y + player.size > o.y
+      player.x < t.x + t.w &&
+      player.x + player.size > t.x &&
+      player.y + player.size < t.y + 20 &&
+      player.y + player.size + player.vy >= t.y
     ) {
-      alive = false;
+      player.y = t.y - player.size;
+      player.vy = 0;
+      player.onGround = true;
     }
-  }
+    t.x -= SPEED;
+  });
+
+  obstacles.forEach(o => o.x -= SPEED);
+  portals.forEach(p => p.x -= SPEED);
+
+  // Ground fail
+  if (player.y > canvas.height) gameState = "dead";
+
+  // Collision
+  obstacles.forEach(o => {
+    if (hit(player, o)) gameState = "dead";
+  });
+
+  portals.forEach(p => {
+    if (hit(player, p)) mode = p.mode;
+  });
+
+  // Cleanup
+  terrain = terrain.filter(t => t.x + t.w > 0);
+  obstacles = obstacles.filter(o => o.x + o.w > 0);
+  portals = portals.filter(p => p.x + p.w > 0);
 }
 
+// ------------------ DRAW ------------------
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  if (gameState === "menu") {
+    ctx.fillStyle = "#00ffff";
+    ctx.font = "80px Arial";
+    ctx.fillText("NEON PULSE", canvas.width / 2 - 240, canvas.height / 2 - 50);
+
+    ctx.font = "40px Arial";
+    ctx.fillText("CLICK TO PLAY", canvas.width / 2 - 130, canvas.height / 2 + 40);
+    return;
+  }
+
   // Player
-  ctx.fillStyle = "#00ffff";
+  ctx.fillStyle = mode === "cube" ? "#00ffff" : "#ffff00";
   ctx.fillRect(player.x, player.y, player.size, player.size);
 
-  // Ground
+  // Terrain
   ctx.fillStyle = "#222";
-  ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+  terrain.forEach(t => ctx.fillRect(t.x, t.y, t.w, t.h));
 
   // Obstacles
   ctx.fillStyle = "#ff00ff";
-  obstacles.forEach(o =>
-    ctx.fillRect(o.x, o.y, o.w, o.h)
-  );
+  obstacles.forEach(o => ctx.fillRect(o.x, o.y, o.w, o.h));
 
-  if (!alive) {
+  // Portals
+  ctx.fillStyle = "#00ff00";
+  portals.forEach(p => ctx.fillRect(p.x, p.y, p.w, p.h));
+
+  if (gameState === "dead") {
     ctx.fillStyle = "white";
     ctx.font = "40px Arial";
-    ctx.fillText("CLICK OR SPACE TO RESTART", canvas.width / 2 - 260, canvas.height / 2);
+    ctx.fillText("RESTART", canvas.width / 2 - 80, canvas.height / 2);
   }
 }
 
+// ------------------ UTILS ------------------
+function hit(a, b) {
+  return (
+    a.x < b.x + b.w &&
+    a.x + a.size > b.x &&
+    a.y < b.y + b.h &&
+    a.y + a.size > b.y
+  );
+}
+
+// ------------------ LOOP ------------------
 function loop() {
   update();
   draw();
   requestAnimationFrame(loop);
 }
-
 loop();
 </script>
 </body>
